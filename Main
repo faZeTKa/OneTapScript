@@ -1,0 +1,563 @@
+--[[
+    One Tap Hub Premium для Delta Injector
+    Автор: Ryzen System
+]]
+
+-- Сервисы
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
+
+-- Настройки
+local Settings = {
+    Aimbot = {
+        Enabled = false,
+        FOV = 150,
+        ShowFOV = false,
+        AutoShot = false,
+        HitChance = 80
+    },
+    Player = {
+        WalkSpeed = 16,
+        JumpPower = 50
+    }
+}
+
+-- Создание GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "OneTapHubPremium"
+ScreenGui.Parent = game.CoreGui
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Главный контейнер
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.2, 0, 0.15, 0)
+MainFrame.Size = UDim2.new(0, 300, 0, 420)
+MainFrame.Visible = false
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 12)
+MainCorner.Parent = MainFrame
+
+-- Градиентная рамка
+local Gradient = Instance.new("UIGradient")
+Gradient.Parent = MainFrame
+Gradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 50, 100)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 50, 255))
+})
+Gradient.Rotation = 45
+
+-- Заголовок
+local TitleFrame = Instance.new("Frame")
+TitleFrame.Name = "TitleFrame"
+TitleFrame.Parent = MainFrame
+TitleFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 38)
+TitleFrame.BorderSizePixel = 0
+TitleFrame.Size = UDim2.new(1, 0, 0, 45)
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 12)
+TitleCorner.Parent = TitleFrame
+
+local TitleCover = Instance.new("Frame")
+TitleCover.Parent = TitleFrame
+TitleCover.BackgroundColor3 = Color3.fromRGB(25, 25, 38)
+TitleCover.BorderSizePixel = 0
+TitleCover.Position = UDim2.new(0, 0, 0.5, 0)
+TitleCover.Size = UDim2.new(1, 0, 0.5, 0)
+
+local Title = Instance.new("TextLabel")
+Title.Parent = TitleFrame
+Title.BackgroundTransparency = 1
+Title.Position = UDim2.new(0, 15, 0, 0)
+Title.Size = UDim2.new(0.7, 0, 1, 0)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "ONE TAP HUB"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 18
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Кнопка закрытия
+local CloseButton = Instance.new("TextButton")
+CloseButton.Parent = TitleFrame
+CloseButton.BackgroundColor3 = Color3.fromRGB(255, 50, 100)
+CloseButton.BorderSizePixel = 0
+CloseButton.Position = UDim2.new(0.88, 0, 0.2, 0)
+CloseButton.Size = UDim2.new(0, 28, 0, 28)
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.Text = "×"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 18
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 14)
+CloseCorner.Parent = CloseButton
+
+CloseButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+end)
+
+-- Вкладки
+local TabFrame = Instance.new("Frame")
+TabFrame.Name = "TabFrame"
+TabFrame.Parent = MainFrame
+TabFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 38)
+TabFrame.BorderSizePixel = 0
+TabFrame.Position = UDim2.new(0, 0, 0, 45)
+TabFrame.Size = UDim2.new(1, 0, 0, 35)
+
+local PlayerTab = Instance.new("TextButton")
+PlayerTab.Parent = TabFrame
+PlayerTab.BackgroundColor3 = Color3.fromRGB(255, 50, 100)
+PlayerTab.BorderSizePixel = 0
+PlayerTab.Position = UDim2.new(0.01, 0, 0.1, 0)
+PlayerTab.Size = UDim2.new(0.47, 0, 0.8, 0)
+PlayerTab.Font = Enum.Font.GothamBold
+PlayerTab.Text = "👤 Player"
+PlayerTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+PlayerTab.TextSize = 12
+
+local PlayerTabCorner = Instance.new("UICorner")
+PlayerTabCorner.CornerRadius = UDim.new(0, 6)
+PlayerTabCorner.Parent = PlayerTab
+
+local CombatTab = Instance.new("TextButton")
+CombatTab.Parent = TabFrame
+CombatTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+CombatTab.BorderSizePixel = 0
+CombatTab.Position = UDim2.new(0.51, 0, 0.1, 0)
+CombatTab.Size = UDim2.new(0.47, 0, 0.8, 0)
+CombatTab.Font = Enum.Font.GothamBold
+CombatTab.Text = "⚔️ Combat"
+CombatTab.TextColor3 = Color3.fromRGB(200, 200, 200)
+CombatTab.TextSize = 12
+
+local CombatTabCorner = Instance.new("UICorner")
+CombatTabCorner.CornerRadius = UDim.new(0, 6)
+CombatTabCorner.Parent = CombatTab
+
+-- Контейнеры для контента вкладок
+local PlayerContent = Instance.new("ScrollingFrame")
+PlayerContent.Name = "PlayerContent"
+PlayerContent.Parent = MainFrame
+PlayerContent.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+PlayerContent.BorderSizePixel = 0
+PlayerContent.Position = UDim2.new(0, 0, 0, 80)
+PlayerContent.Size = UDim2.new(1, 0, 1, -80)
+PlayerContent.CanvasSize = UDim2.new(0, 0, 0, 200)
+PlayerContent.ScrollBarThickness = 3
+PlayerContent.ScrollBarImageColor3 = Color3.fromRGB(255, 50, 100)
+PlayerContent.Visible = true
+
+local CombatContent = Instance.new("ScrollingFrame")
+CombatContent.Name = "CombatContent"
+CombatContent.Parent = MainFrame
+CombatContent.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+CombatContent.BorderSizePixel = 0
+CombatContent.Position = UDim2.new(0, 0, 0, 80)
+CombatContent.Size = UDim2.new(1, 0, 1, -80)
+CombatContent.CanvasSize = UDim2.new(0, 0, 0, 300)
+CombatContent.ScrollBarThickness = 3
+CombatContent.ScrollBarImageColor3 = Color3.fromRGB(255, 50, 100)
+CombatContent.Visible = false
+
+-- Layouts для контента
+local PlayerLayout = Instance.new("UIListLayout")
+PlayerLayout.Parent = PlayerContent
+PlayerLayout.SortOrder = Enum.SortOrder.LayoutOrder
+PlayerLayout.Padding = UDim.new(0, 10)
+
+local CombatLayout = Instance.new("UIListLayout")
+CombatLayout.Parent = CombatContent
+CombatLayout.SortOrder = Enum.SortOrder.LayoutOrder
+CombatLayout.Padding = UDim.new(0, 10)
+
+local PlayerPadding = Instance.new("UIPadding")
+PlayerPadding.Parent = PlayerContent
+PlayerPadding.PaddingLeft = UDim.new(0, 12)
+PlayerPadding.PaddingRight = UDim.new(0, 12)
+PlayerPadding.PaddingTop = UDim.new(0, 10)
+
+local CombatPadding = Instance.new("UIPadding")
+CombatPadding.Parent = CombatContent
+CombatPadding.PaddingLeft = UDim.new(0, 12)
+CombatPadding.PaddingRight = UDim.new(0, 12)
+CombatPadding.PaddingTop = UDim.new(0, 10)
+
+-- Функция создания секции
+local function createSection(parent, title)
+    local Section = Instance.new("Frame")
+    Section.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+    Section.BorderSizePixel = 0
+    Section.Size = UDim2.new(1, 0, 0, 30)
+    Section.Parent = parent
+    
+    local SectionCorner = Instance.new("UICorner")
+    SectionCorner.CornerRadius = UDim.new(0, 6)
+    SectionCorner.Parent = Section
+    
+    local SectionLabel = Instance.new("TextLabel")
+    SectionLabel.Parent = Section
+    SectionLabel.BackgroundTransparency = 1
+    SectionLabel.Position = UDim2.new(0, 12, 0, 0)
+    SectionLabel.Size = UDim2.new(1, -24, 1, 0)
+    SectionLabel.Font = Enum.Font.GothamBold
+    SectionLabel.Text = title
+    SectionLabel.TextColor3 = Color3.fromRGB(255, 50, 100)
+    SectionLabel.TextSize = 13
+    SectionLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    return Section
+end
+
+-- Функция создания слайдера
+local function createSlider(parent, name, min, max, default, suffix, callback)
+    local SliderFrame = Instance.new("Frame")
+    SliderFrame.BackgroundColor3 = Color3.fromRGB(32, 32, 48)
+    SliderFrame.BorderSizePixel = 0
+    SliderFrame.Size = UDim2.new(1, 0, 0, 55)
+    SliderFrame.Parent = parent
+    
+    local SliderCorner = Instance.new("UICorner")
+    SliderCorner.CornerRadius = UDim.new(0, 8)
+    SliderCorner.Parent = SliderFrame
+    
+    local SliderLabel = Instance.new("TextLabel")
+    SliderLabel.Parent = SliderFrame
+    SliderLabel.BackgroundTransparency = 1
+    SliderLabel.Position = UDim2.new(0, 12, 0, 4)
+    SliderLabel.Size = UDim2.new(1, -24, 0, 16)
+    SliderLabel.Font = Enum.Font.Gotham
+    SliderLabel.Text = name..": "..default..(suffix or "")
+    SliderLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    SliderLabel.TextSize = 11
+    SliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    -- Фон слайдера
+    local SliderBg = Instance.new("Frame")
+    SliderBg.Parent = SliderFrame
+    SliderBg.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+    SliderBg.BorderSizePixel = 0
+    SliderBg.Position = UDim2.new(0.04, 0, 0.55, 0)
+    SliderBg.Size = UDim2.new(0.92, 0, 0, 5)
+    
+    local SliderBgCorner = Instance.new("UICorner")
+    SliderBgCorner.CornerRadius = UDim.new(0, 3)
+    SliderBgCorner.Parent = SliderBg
+    
+    -- Заполнитель слайдера
+    local SliderFill = Instance.new("Frame")
+    SliderFill.Parent = SliderBg
+    SliderFill.BackgroundColor3 = Color3.fromRGB(255, 50, 100)
+    SliderFill.BorderSizePixel = 0
+    SliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    
+    local SliderFillCorner = Instance.new("UICorner")
+    SliderFillCorner.CornerRadius = UDim.new(0, 3)
+    SliderFillCorner.Parent = SliderFill
+    
+    -- Кнопка слайдера
+    local SliderButton = Instance.new("TextButton")
+    SliderButton.Parent = SliderBg
+    SliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    SliderButton.BorderSizePixel = 0
+    SliderButton.Size = UDim2.new(0, 16, 0, 16)
+    SliderButton.Position = UDim2.new((default - min) / (max - min), -8, 0.5, -8)
+    SliderButton.Font = Enum.Font.Gotham
+    SliderButton.Text = ""
+    
+    local SliderButtonCorner = Instance.new("UICorner")
+    SliderButtonCorner.CornerRadius = UDim.new(1, 0)
+    SliderButtonCorner.Parent = SliderButton
+    
+    -- Тень кнопки
+    local SliderShadow = Instance.new("ImageLabel")
+    SliderShadow.Parent = SliderButton
+    SliderShadow.BackgroundTransparency = 1
+    SliderShadow.Position = UDim2.new(-0.2, 0, -0.2, 0)
+    SliderShadow.Size = UDim2.new(1.4, 0, 1.4, 0)
+    SliderShadow.Image = "rbxassetid://6015897843"
+    SliderShadow.ImageTransparency = 0.7
+    
+    local value = default
+    
+    local function updateSlider(input)
+        local barAbsolutePos = SliderBg.AbsolutePosition.X
+        local barAbsoluteSize = SliderBg.AbsoluteSize.X
+        local relativePos = math.clamp((input.Position.X - barAbsolutePos) / barAbsoluteSize, 0, 1)
+        value = math.floor(min + (max - min) * relativePos)
+        
+        SliderFill.Size = UDim2.new(relativePos, 0, 1, 0)
+        SliderButton.Position = UDim2.new(relativePos, -8, 0.5, -8)
+        SliderLabel.Text = name..": "..value..(suffix or "")
+        
+        if callback then
+            callback(value)
+        end
+    end
+    
+    SliderButton.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            local connection
+            connection = UserInputService.InputChanged:Connect(function(moveInput)
+                if moveInput.UserInputType == Enum.UserInputType.Touch or moveInput.UserInputType == Enum.UserInputType.MouseMovement then
+                    updateSlider(moveInput)
+                end
+            end)
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    connection:Disconnect()
+                end
+            end)
+        end
+    end)
+    
+    SliderBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            updateSlider(input)
+        end
+    end)
+    
+    return {
+        getValue = function() return value end,
+        setValue = function(v) 
+            value = v
+            local relativePos = (v - min) / (max - min)
+            SliderFill.Size = UDim2.new(relativePos, 0, 1, 0)
+            SliderButton.Position = UDim2.new(relativePos, -8, 0.5, -8)
+            SliderLabel.Text = name..": "..v..(suffix or "")
+        end,
+        frame = SliderFrame
+    }
+end
+
+-- Функция создания тоггла
+local function createToggle(parent, name, callback)
+    local ToggleFrame = Instance.new("Frame")
+    ToggleFrame.BackgroundColor3 = Color3.fromRGB(32, 32, 48)
+    ToggleFrame.BorderSizePixel = 0
+    ToggleFrame.Size = UDim2.new(1, 0, 0, 40)
+    ToggleFrame.Parent = parent
+    
+    local ToggleCorner = Instance.new("UICorner")
+    ToggleCorner.CornerRadius = UDim.new(0, 8)
+    ToggleCorner.Parent = ToggleFrame
+    
+    local ToggleLabel = Instance.new("TextLabel")
+    ToggleLabel.Parent = ToggleFrame
+    ToggleLabel.BackgroundTransparency = 1
+    ToggleLabel.Position = UDim2.new(0, 12, 0, 0)
+    ToggleLabel.Size = UDim2.new(0.6, 0, 1, 0)
+    ToggleLabel.Font = Enum.Font.Gotham
+    ToggleLabel.Text = name..": OFF"
+    ToggleLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    ToggleLabel.TextSize = 12
+    ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local ToggleButton = Instance.new("Frame")
+    ToggleButton.Parent = ToggleFrame
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(55, 55, 70)
+    ToggleButton.BorderSizePixel = 0
+    ToggleButton.Position = UDim2.new(0.8, 0, 0.2, 0)
+    ToggleButton.Size = UDim2.new(0, 40, 0, 24)
+    
+    local ToggleCorner2 = Instance.new("UICorner")
+    ToggleCorner2.CornerRadius = UDim.new(1, 0)
+    ToggleCorner2.Parent = ToggleButton
+    
+    local ToggleCircle = Instance.new("Frame")
+    ToggleCircle.Parent = ToggleButton
+    ToggleCircle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleCircle.BorderSizePixel = 0
+    ToggleCircle.Position = UDim2.new(0.05, 0, 0.15, 0)
+    ToggleCircle.Size = UDim2.new(0, 18, 0, 18)
+    
+    local ToggleCircleCorner = Instance.new("UICorner")
+    ToggleCircleCorner.CornerRadius = UDim.new(1, 0)
+    ToggleCircleCorner.Parent = ToggleCircle
+    
+    local toggled = false
+    
+    local clickButton = Instance.new("TextButton")
+    clickButton.Parent = ToggleFrame
+    clickButton.BackgroundTransparency = 1
+    clickButton.Size = UDim2.new(1, 0, 1, 0)
+    clickButton.Font = Enum.Font.Gotham
+    clickButton.Text = ""
+    
+    clickButton.MouseButton1Click:Connect(function()
+        toggled = not toggled
+        if toggled then
+            ToggleButton.BackgroundColor3 = Color3.fromRGB(255, 50, 100)
+            ToggleCircle:TweenPosition(UDim2.new(0.5, 0, 0.15, 0), "Out", "Quad", 0.2, true)
+            ToggleLabel.Text = name..": ON"
+            ToggleLabel.TextColor3 = Color3.fromRGB(100, 255, 150)
+        else
+            ToggleButton.BackgroundColor3 = Color3.fromRGB(55, 55, 70)
+            ToggleCircle:TweenPosition(UDim2.new(0.05, 0, 0.15, 0), "Out", "Quad", 0.2, true)
+            ToggleLabel.Text = name..": OFF"
+            ToggleLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+        end
+        if callback then
+            callback(toggled)
+        end
+    end)
+    
+    return {
+        toggle = function() return toggled end,
+        frame = ToggleFrame
+    }
+end
+
+-- Заполнение вкладки Player
+createSection(PlayerContent, "🏃 Movement")
+local walkSpeedSlider = createSlider(PlayerContent, "Walk Speed", 16, 200, 16, " studs/s", function(value)
+    Settings.Player.WalkSpeed = value
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") then
+        char.Humanoid.WalkSpeed = value
+    end
+end)
+
+local jumpPowerSlider = createSlider(PlayerContent, "Jump Power", 50, 300, 50, "", function(value)
+    Settings.Player.JumpPower = value
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") then
+        char.Humanoid.JumpPower = value
+    end
+end)
+
+-- Заполнение вкладки Combat
+createSection(CombatContent, "🎯 Aimbot")
+local aimbotToggle = createToggle(CombatContent, "Aimbot", function(state)
+    Settings.Aimbot.Enabled = state
+end)
+
+local showFovToggle = createToggle(CombatContent, "Show FOV", function(state)
+    Settings.Aimbot.ShowFOV = state
+end)
+
+local fovSlider = createSlider(CombatContent, "FOV Radius", 30, 400, 150, "px", function(value)
+    Settings.Aimbot.FOV = value
+end)
+
+createSection(CombatContent, "🔫 Auto Shot")
+local autoShotToggle = createToggle(CombatContent, "Auto Shot", function(state)
+    Settings.Aimbot.AutoShot = state
+end)
+
+local hitChanceSlider = createSlider(CombatContent, "Hit Chance", 0, 100, 80, "%", function(value)
+    Settings.Aimbot.HitChance = value
+end)
+
+-- Обновление CanvasSize
+PlayerContent.CanvasSize = UDim2.new(0, 0, 0, PlayerLayout.AbsoluteContentSize.Y + 20)
+CombatContent.CanvasSize = UDim2.new(0, 0, 0, CombatLayout.AbsoluteContentSize.Y + 20)
+
+-- Переключение вкладок
+PlayerTab.MouseButton1Click:Connect(function()
+    PlayerContent.Visible = true
+    CombatContent.Visible = false
+    PlayerTab.BackgroundColor3 = Color3.fromRGB(255, 50, 100)
+    CombatTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    PlayerTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CombatTab.TextColor3 = Color3.fromRGB(200, 200, 200)
+end)
+
+CombatTab.MouseButton1Click:Connect(function()
+    PlayerContent.Visible = false
+    CombatContent.Visible = true
+    CombatTab.BackgroundColor3 = Color3.fromRGB(255, 50, 100)
+    PlayerTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    CombatTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+    PlayerTab.TextColor3 = Color3.fromRGB(200, 200, 200)
+end)
+
+-- Кнопка перетаскивания
+local DragButton = Instance.new("TextButton")
+DragButton.Parent = ScreenGui
+DragButton.BackgroundColor3 = Color3.fromRGB(255, 50, 100)
+DragButton.BorderSizePixel = 0
+DragButton.Position = UDim2.new(0.5, 0, 0.5, 0)
+DragButton.Size = UDim2.new(0, 52, 0, 52)
+DragButton.Font = Enum.Font.GothamBlack
+DragButton.Text = "OT"
+DragButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+DragButton.TextSize = 16
+
+local DragCorner = Instance.new("UICorner")
+DragCorner.CornerRadius = UDim.new(1, 0)
+DragCorner.Parent = DragButton
+
+-- Тень для кнопки
+local DragShadow = Instance.new("ImageLabel")
+DragShadow.Parent = DragButton
+DragShadow.BackgroundTransparency = 1
+DragShadow.Position = UDim2.new(-0.15, 0, -0.15, 0)
+DragShadow.Size = UDim2.new(1.3, 0, 1.3, 0)
+DragShadow.Image = "rbxassetid://6015897843"
+DragShadow.ImageTransparency = 0.6
+DragShadow.ZIndex = -1
+
+-- Перемещение кнопки
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+DragButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = DragButton.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
+        local delta = input.Position - dragStart
+        local newX = math.clamp(startPos.X.Offset + delta.X, 0, workspace.CurrentCamera.ViewportSize.X - 52)
+        local newY = math.clamp(startPos.Y.Offset + delta.Y, 0, workspace.CurrentCamera.ViewportSize.Y - 52)
+        DragButton.Position = UDim2.new(0, newX, 0, newY)
+    end
+end)
+
+DragButton.MouseButton1Click:Connect(function()
+    if not dragging then
+        MainFrame.Visible = not MainFrame.Visible
+    end
+end)
+
+-- FOV круг
+local fovCircle = Drawing.new("Circle")
+fovCircle.Visible = false
+fovCircle.Thickness = 1.2
+fovCircle.Color = Color3.fromRGB(255, 255, 255)
+fovCircle.Transparency = 0.9
+fovCircle.NumSides = 100
+fovCircle.Filled = false
+fovCircle.ZIndex = 1
+
+-- Aimbot логика
+local function getClosestTarget()
+    local closestTarget = nil
+    local closestDistance = Settings.Aimbot.FOV
+    
+    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Huma
