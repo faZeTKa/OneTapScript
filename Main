@@ -3,8 +3,6 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
-local Mouse = LocalPlayer:GetMouse()
-local UserInputService = game:GetService("UserInputService")
 
 local Settings = {
     Aimbot = {
@@ -13,8 +11,7 @@ local Settings = {
         ShowFOV = false,
         WallCheck = true,
         Smoothness = 1,
-        TargetPart = "Head",
-        VisibleOnly = true
+        TargetPart = "Head"
     },
     ESP = {
         Enabled = false,
@@ -23,9 +20,6 @@ local Settings = {
         Names = false,
         HealthBar = false,
         Distance = false,
-        Chams = false,
-        Glow = false,
-        Skeleton = false,
         HeadDot = false
     },
     Player = {
@@ -44,7 +38,6 @@ local Settings = {
     Visuals = {
         Crosshair = false,
         CrosshairSize = 20,
-        CrosshairColor = Color3.fromRGB(255, 0, 0),
         FOVChanger = false,
         FOVValue = 70
     }
@@ -111,18 +104,13 @@ local function applyAntiAim()
     if Settings.Player.AntiAimType == "Jitter" then
         JitterIndex = JitterIndex + 1
         if JitterIndex > #JitterAngles then JitterIndex = 1 end
-        local angle = math.rad(JitterAngles[JitterIndex])
-        root.CFrame = root.CFrame * CFrame.Angles(0, angle, 0)
+        root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(JitterAngles[JitterIndex]), 0)
     elseif Settings.Player.AntiAimType == "Desync" then
         DesyncIndex = DesyncIndex + 1
         if DesyncIndex > #DesyncAngles then DesyncIndex = 1 end
-        local angle = math.rad(DesyncAngles[DesyncIndex])
-        root.CFrame = root.CFrame * CFrame.Angles(0, angle, 0)
-        if char:FindFirstChild("Humanoid") then
-            char.Humanoid.AutoRotate = false
-        end
+        root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(DesyncAngles[DesyncIndex]), 0)
     elseif Settings.Player.AntiAimType == "Spin" then
-        root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(tick() * 360 % 360), 0)
+        root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(tick() * 720 % 360), 0)
     elseif Settings.Player.AntiAimType == "Random" then
         root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(math.random(0, 360)), 0)
     end
@@ -131,7 +119,7 @@ end
 local AntiAimConnection = nil
 local function enableAntiAim()
     if AntiAimConnection then AntiAimConnection:Disconnect() end
-    AntiAimConnection = RunService.RenderStepped:Connect(function()
+    AntiAimConnection = RunService.Stepped:Connect(function()
         if Settings.Player.AntiAim then
             applyAntiAim()
         end
@@ -143,21 +131,16 @@ local function disableAntiAim()
         AntiAimConnection:Disconnect()
         AntiAimConnection = nil
     end
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.AutoRotate = true
-    end
 end
 
 local ThirdPersonConnection = nil
 local function enableThirdPerson()
     if ThirdPersonConnection then ThirdPersonConnection:Disconnect() end
     ThirdPersonConnection = RunService.RenderStepped:Connect(function()
-        if Settings.Player.ThirdPerson and LocalPlayer.Character then
+        if Settings.Player.ThirdPerson then
             LocalPlayer.CameraMode = Enum.CameraMode.Classic
-            pcall(function()
-                LocalPlayer.CameraMaxZoomDistance = Settings.Player.ThirdPersonDistance
-                LocalPlayer.CameraMinZoomDistance = Settings.Player.ThirdPersonDistance
-            end)
+            LocalPlayer.CameraMaxZoomDistance = Settings.Player.ThirdPersonDistance
+            LocalPlayer.CameraMinZoomDistance = Settings.Player.ThirdPersonDistance
         end
     end)
 end
@@ -167,11 +150,9 @@ local function disableThirdPerson()
         ThirdPersonConnection:Disconnect()
         ThirdPersonConnection = nil
     end
-    pcall(function()
-        LocalPlayer.CameraMaxZoomDistance = 400
-        LocalPlayer.CameraMinZoomDistance = 0.5
-        LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
-    end)
+    LocalPlayer.CameraMaxZoomDistance = 400
+    LocalPlayer.CameraMinZoomDistance = 0.5
+    LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
 end
 
 local FlyConnection = nil
@@ -276,7 +257,7 @@ local function disableInfiniteJump()
 end
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "OneTapHub"
+ScreenGui.Name = "OneTapHubPro"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
@@ -436,7 +417,7 @@ ESPContent.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 ESPContent.BorderSizePixel = 0
 ESPContent.Position = UDim2.new(0, 0, 0, 70)
 ESPContent.Size = UDim2.new(1, 0, 1, -70)
-ESPContent.CanvasSize = UDim2.new(0, 0, 0, 600)
+ESPContent.CanvasSize = UDim2.new(0, 0, 0, 500)
 ESPContent.ScrollBarThickness = 3
 ESPContent.ScrollBarImageColor3 = Color3.fromRGB(255, 50, 100)
 ESPContent.Visible = false
@@ -495,6 +476,7 @@ VisualsPadding.Parent = VisualsContent
 VisualsPadding.PaddingLeft = UDim.new(0, 10)
 VisualsPadding.PaddingRight = UDim.new(0, 10)
 VisualsPadding.PaddingTop = UDim.new(0, 8)
+
 local function createSection(parent, title)
     local Section = Instance.new("Frame")
     Section.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
@@ -842,10 +824,6 @@ local espHeadDotToggle = createToggle(ESPContent, "Head Dot", function(state)
     Settings.ESP.HeadDot = state
 end)
 
-local espSkeletonToggle = createToggle(ESPContent, "Skeleton", function(state)
-    Settings.ESP.Skeleton = state
-end)
-
 createSection(VisualsContent, "Visuals")
 local crosshairToggle = createToggle(VisualsContent, "Crosshair", function(state)
     Settings.Visuals.Crosshair = state
@@ -984,16 +962,17 @@ fovCircle.ZIndex = 1
 local crosshairHorizontal = Drawing.new("Line")
 crosshairHorizontal.Visible = false
 crosshairHorizontal.Thickness = 2
-crosshairHorizontal.Color = Settings.Visuals.CrosshairColor
+crosshairHorizontal.Color = Color3.fromRGB(255, 0, 0)
 crosshairHorizontal.Transparency = 0.5
 crosshairHorizontal.ZIndex = 10
 
 local crosshairVertical = Drawing.new("Line")
 crosshairVertical.Visible = false
 crosshairVertical.Thickness = 2
-crosshairVertical.Color = Settings.Visuals.CrosshairColor
+crosshairVertical.Color = Color3.fromRGB(255, 0, 0)
 crosshairVertical.Transparency = 0.5
 crosshairVertical.ZIndex = 10
+
 local espCache = {}
 
 local function createESP(player)
@@ -1057,18 +1036,8 @@ local function createESP(player)
     headDot.Transparency = 0.5
     headDot.Filled = true
     headDot.NumSides = 32
-    headDot.Radius = 5
+    headDot.Radius = 6
     headDot.ZIndex = 3
-    local skeletonLines = {}
-    for i = 1, 10 do
-        local line = Drawing.new("Line")
-        line.Visible = false
-        line.Thickness = 1
-        line.Color = Color3.fromRGB(255, 255, 255)
-        line.Transparency = 0.5
-        line.ZIndex = 2
-        skeletonLines[i] = line
-    end
     espCache[player] = {
         BoxOutline = boxOutline,
         Box = box,
@@ -1077,21 +1046,14 @@ local function createESP(player)
         Tracer = tracer,
         Name = nameTag,
         Distance = distanceTag,
-        HeadDot = headDot,
-        Skeleton = skeletonLines
+        HeadDot = headDot
     }
 end
 
 local function removeESP(player)
     if espCache[player] then
         for _, drawing in pairs(espCache[player]) do
-            if type(drawing) == "table" then
-                for _, d in ipairs(drawing) do
-                    d:Remove()
-                end
-            else
-                drawing:Remove()
-            end
+            pcall(function() drawing:Remove() end)
         end
         espCache[player] = nil
     end
@@ -1104,225 +1066,19 @@ local function updateESP()
             continue
         end
         if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
-            for k, d in pairs(drawings) do
-                if type(d) == "table" then
-                    for _, line in ipairs(d) do line.Visible = false end
-                else
-                    d.Visible = false
-                end
-            end
+            for _, d in pairs(drawings) do d.Visible = false end
             continue
         end
         if not Settings.ESP.Enabled then
-            for k, d in pairs(drawings) do
-                if type(d) == "table" then
-                    for _, line in ipairs(d) do line.Visible = false end
-                else
-                    d.Visible = false
-                end
-            end
+            for _, d in pairs(drawings) do d.Visible = false end
             continue
         end
         local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
         local head = player.Character:FindFirstChild("Head")
         local humanoid = player.Character:FindFirstChild("Humanoid")
         if not rootPart or not head or not humanoid then
-            for k, d in pairs(drawings) do
-                if type(d) == "table" then
-                    for _, line in ipairs(d) do line.Visible = false end
-                else
-                    d.Visible = false
-                end
-            end
+            for _, d in pairs(drawings) do d.Visible = false end
             continue
         end
         local rootPos, rootOnScreen = Camera:WorldToViewportPoint(rootPart.Position)
-        local headPos, headOnScreen = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.8, 0))
-        local legPos = rootPart.Position - Vector3.new(0, 3, 0)
-        local legScreen, legOnScreen = Camera:WorldToViewportPoint(legPos)
-        if not rootOnScreen and not headOnScreen then
-            for k, d in pairs(drawings) do
-                if type(d) == "table" then
-                    for _, line in ipairs(d) do line.Visible = false end
-                else
-                    d.Visible = false
-                end
-            end
-            continue
-        end
-        local topY = headPos.Y
-        local bottomY = math.max(rootPos.Y, legScreen.Y)
-        local fullHeight = math.abs(bottomY - topY)
-        local fullWidth = fullHeight * 0.5
-        local boxX = rootPos.X - fullWidth / 2
-        if Settings.ESP.Boxes then
-            drawings.BoxOutline.Visible = true
-            drawings.BoxOutline.Position = Vector2.new(boxX - 1, topY - 1)
-            drawings.BoxOutline.Size = Vector2.new(fullWidth + 2, fullHeight + 2)
-            drawings.Box.Visible = true
-            drawings.Box.Position = Vector2.new(boxX, topY)
-            drawings.Box.Size = Vector2.new(fullWidth, fullHeight)
-        else
-            drawings.BoxOutline.Visible = false
-            drawings.Box.Visible = false
-        end
-        if Settings.ESP.HealthBar then
-            local healthPercent = humanoid.Health / humanoid.MaxHealth
-            local barHeight = fullHeight * healthPercent
-            local barWidth = 4
-            local barX = boxX - barWidth - 4
-            local barY = topY + fullHeight - barHeight
-            drawings.HealthBarBg.Visible = true
-            drawings.HealthBarBg.Position = Vector2.new(barX, topY)
-            drawings.HealthBarBg.Size = Vector2.new(barWidth, fullHeight)
-            drawings.HealthBar.Visible = true
-            drawings.HealthBar.Position = Vector2.new(barX, barY)
-            drawings.HealthBar.Size = Vector2.new(barWidth, barHeight)
-            if healthPercent > 0.6 then
-                drawings.HealthBar.Color = Color3.fromRGB(100, 255, 100)
-            elseif healthPercent > 0.3 then
-                drawings.HealthBar.Color = Color3.fromRGB(255, 255, 100)
-            else
-                drawings.HealthBar.Color = Color3.fromRGB(255, 100, 100)
-            end
-        else
-            drawings.HealthBarBg.Visible = false
-            drawings.HealthBar.Visible = false
-        end
-        if Settings.ESP.Tracers then
-            drawings.Tracer.Visible = true
-            drawings.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-            drawings.Tracer.To = Vector2.new(rootPos.X, rootPos.Y)
-        else
-            drawings.Tracer.Visible = false
-        end
-        if Settings.ESP.Names then
-            drawings.Name.Visible = true
-            drawings.Name.Text = player.Name
-            drawings.Name.Position = Vector2.new(headPos.X, headPos.Y - 24)
-        else
-            drawings.Name.Visible = false
-        end
-        if Settings.ESP.Distance then
-            local dist = math.floor((LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and (LocalPlayer.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude) or 0)
-            drawings.Distance.Visible = true
-            drawings.Distance.Text = "["..dist.."m]"
-            drawings.Distance.Position = Vector2.new(headPos.X, headPos.Y - 38)
-        else
-            drawings.Distance.Visible = false
-        end
-        if Settings.ESP.HeadDot then
-            drawings.HeadDot.Visible = true
-            drawings.HeadDot.Position = Vector2.new(headPos.X, headPos.Y)
-        else
-            drawings.HeadDot.Visible = false
-        end
-        if Settings.ESP.Skeleton then
-            local connections = {
-                {"Head", "UpperTorso"},
-                {"UpperTorso", "LeftUpperArm"},
-                {"LeftUpperArm", "LeftLowerArm"},
-                {"LeftLowerArm", "LeftHand"},
-                {"UpperTorso", "RightUpperArm"},
-                {"RightUpperArm", "RightLowerArm"},
-                {"RightLowerArm", "RightHand"},
-                {"UpperTorso", "LowerTorso"},
-                {"LowerTorso", "LeftUpperLeg"},
-                {"LeftUpperLeg", "LeftLowerLeg"},
-            }
-            for i, conn in ipairs(connections) do
-                local part1 = player.Character:FindFirstChild(conn[1])
-                local part2 = player.Character:FindFirstChild(conn[2])
-                if part1 and part2 and i <= #drawings.Skeleton then
-                    local pos1, on1 = Camera:WorldToViewportPoint(part1.Position)
-                    local pos2, on2 = Camera:WorldToViewportPoint(part2.Position)
-                    if on1 and on2 then
-                        drawings.Skeleton[i].Visible = true
-                        drawings.Skeleton[i].From = Vector2.new(pos1.X, pos1.Y)
-                        drawings.Skeleton[i].To = Vector2.new(pos2.X, pos2.Y)
-                    else
-                        drawings.Skeleton[i].Visible = false
-                    end
-                end
-            end
-        else
-            for _, line in ipairs(drawings.Skeleton) do
-                line.Visible = false
-            end
-        end
-    end
-end
-
-local function setupAllESP()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            createESP(player)
-        end
-    end
-end
-
-setupAllESP()
-
-Players.PlayerAdded:Connect(function(player)
-    if player ~= LocalPlayer then
-        task.wait(1)
-        createESP(player)
-    end
-end)
-
-Players.PlayerRemoving:Connect(function(player)
-    removeESP(player)
-end)
-
-RunService.RenderStepped:Connect(function()
-    if Settings.Aimbot.ShowFOV then
-        fovCircle.Visible = true
-        fovCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-        fovCircle.Radius = Settings.Aimbot.FOV
-    else
-        fovCircle.Visible = false
-    end
-    if Settings.Visuals.Crosshair then
-        crosshairHorizontal.Visible = true
-        crosshairVertical.Visible = true
-        local centerX = Camera.ViewportSize.X / 2
-        local centerY = Camera.ViewportSize.Y / 2
-        local size = Settings.Visuals.CrosshairSize
-        crosshairHorizontal.From = Vector2.new(centerX - size, centerY)
-        crosshairHorizontal.To = Vector2.new(centerX + size, centerY)
-        crosshairVertical.From = Vector2.new(centerX, centerY - size)
-        crosshairVertical.To = Vector2.new(centerX, centerY + size)
-    else
-        crosshairHorizontal.Visible = false
-        crosshairVertical.Visible = false
-    end
-    if Settings.Aimbot.Enabled then
-        local target = getClosestTarget()
-        if target then
-            local smoothFactor = Settings.Aimbot.Smoothness
-            local targetCFrame = CFrame.new(Camera.CFrame.Position, target.Position)
-            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 1 / smoothFactor)
-        end
-    end
-    updateESP()
-end)
-
-LocalPlayer.CharacterAdded:Connect(function(character)
-    local humanoid = character:WaitForChild("Humanoid")
-    humanoid.WalkSpeed = Settings.Player.WalkSpeed
-    humanoid.JumpPower = Settings.Player.JumpPower
-    task.wait(1)
-    setupAllESP()
-    if Settings.Player.Fly then enableFly() end
-    if Settings.Player.NoClip then enableNoClip() end
-    if Settings.Player.AntiAim then enableAntiAim() end
-    if Settings.Player.ThirdPerson then enableThirdPerson() end
-end)
-
-if LocalPlayer.Character then
-    local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
-    if humanoid then
-        humanoid.WalkSpeed = Settings.Player.WalkSpeed
-        humanoid.JumpPower = Settings.Player.JumpPower
-    end
-end
+        local headPos, headOnScreen = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.8, 
