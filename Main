@@ -19,9 +19,16 @@ local Settings = {
         HealthBar = false
     },
     Player = {
-        WalkSpeed = 16
+        WalkSpeed = 16,
+        AntiAim = false,
+        ThirdPerson = false
     }
 }
+
+local AntiAimConnection = nil
+local AntiAimAngles = {0, 90, 180, 270, -90, -180, -270, 360}
+local AntiAimIndex = 1
+local ThirdPersonConnection = nil
 
 local RaycastParams = RaycastParams.new()
 RaycastParams.FilterType = Enum.RaycastFilterType.Blacklist
@@ -63,6 +70,54 @@ local function getClosestTarget()
         end
     end
     return closestTarget
+end
+
+local function applyAntiAim()
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local root = char.HumanoidRootPart
+    AntiAimIndex = AntiAimIndex + 1
+    if AntiAimIndex > #AntiAimAngles then AntiAimIndex = 1 end
+    local angle = AntiAimAngles[AntiAimIndex]
+    local radians = math.rad(angle)
+    root.CFrame = root.CFrame * CFrame.Angles(0, radians, 0)
+end
+
+local function enableAntiAim()
+    if AntiAimConnection then AntiAimConnection:Disconnect() end
+    AntiAimConnection = RunService.RenderStepped:Connect(function()
+        if Settings.Player.AntiAim then
+            applyAntiAim()
+        end
+    end)
+end
+
+local function disableAntiAim()
+    if AntiAimConnection then
+        AntiAimConnection:Disconnect()
+        AntiAimConnection = nil
+    end
+end
+
+local function enableThirdPerson()
+    if ThirdPersonConnection then ThirdPersonConnection:Disconnect() end
+    ThirdPersonConnection = RunService.RenderStepped:Connect(function()
+        if Settings.Player.ThirdPerson and LocalPlayer.Character then
+            LocalPlayer.CameraMode = Enum.CameraMode.Classic
+            LocalPlayer.Character.Humanoid.CameraOffset = Vector3.new(3, 1.5, 8)
+        end
+    end)
+end
+
+local function disableThirdPerson()
+    if ThirdPersonConnection then
+        ThirdPersonConnection:Disconnect()
+        ThirdPersonConnection = nil
+    end
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.CameraOffset = Vector3.new(0, 0, 0)
+        LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
+    end
 end
 
 local ScreenGui = Instance.new("ScreenGui")
@@ -189,7 +244,7 @@ PlayerContent.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 PlayerContent.BorderSizePixel = 0
 PlayerContent.Position = UDim2.new(0, 0, 0, 70)
 PlayerContent.Size = UDim2.new(1, 0, 1, -70)
-PlayerContent.CanvasSize = UDim2.new(0, 0, 0, 200)
+PlayerContent.CanvasSize = UDim2.new(0, 0, 0, 300)
 PlayerContent.ScrollBarThickness = 3
 PlayerContent.ScrollBarImageColor3 = Color3.fromRGB(255, 50, 100)
 PlayerContent.Visible = true
@@ -434,6 +489,26 @@ local walkSpeedSlider = createSlider(PlayerContent, "Walk Speed", 16, 200, 16, "
     end
 end)
 
+createSection(PlayerContent, "Anti Aim")
+local antiAimToggle = createToggle(PlayerContent, "Anti Aim", function(state)
+    Settings.Player.AntiAim = state
+    if state then
+        enableAntiAim()
+    else
+        disableAntiAim()
+    end
+end)
+
+createSection(PlayerContent, "Camera")
+local thirdPersonToggle = createToggle(PlayerContent, "Third Person", function(state)
+    Settings.Player.ThirdPerson = state
+    if state then
+        enableThirdPerson()
+    else
+        disableThirdPerson()
+    end
+end)
+
 createSection(CombatContent, "Aimbot")
 local aimbotToggle = createToggle(CombatContent, "Aimbot", function(state)
     Settings.Aimbot.Enabled = state
@@ -632,6 +707,10 @@ end
 
 local function updateESP()
     for player, drawings in pairs(espCache) do
+        if not player or not player.Parent then
+            removeESP(player)
+            continue
+        end
         if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
             for _, d in pairs(drawings) do d.Visible = false end
             continue
@@ -711,12 +790,21 @@ local function updateESP()
     end
 end
 
-for _, player in ipairs(Players:GetPlayers()) do
-    if player ~= LocalPlayer then createESP(player) end
+local function setupAllESP()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            createESP(player)
+        end
+    end
 end
 
+setupAllESP()
+
 Players.PlayerAdded:Connect(function(player)
-    if player ~= LocalPlayer then createESP(player) end
+    if player ~= LocalPlayer then
+        task.wait(0.5)
+        createESP(player)
+    end
 end)
 
 Players.PlayerRemoving:Connect(function(player)
@@ -743,6 +831,8 @@ end)
 LocalPlayer.CharacterAdded:Connect(function(character)
     local humanoid = character:WaitForChild("Humanoid")
     humanoid.WalkSpeed = Settings.Player.WalkSpeed
+    task.wait(1)
+    setupAllESP()
 end)
 
 if LocalPlayer.Character then
