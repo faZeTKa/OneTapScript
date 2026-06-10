@@ -560,4 +560,80 @@ local function getClosestTarget()
     local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Huma
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+            local targetPart = player.Character:FindFirstChild("Head") or player.Character:FindFirstChild("HumanoidRootPart")
+            if targetPart then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                if onScreen then
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                    if distance < closestDistance then
+                        closestTarget = targetPart
+                        closestDistance = distance
+                    end
+                end
+            end
+        end
+    end
+    
+    return closestTarget
+end
+
+-- Аимбот и автошот в RenderStepped
+RunService.RenderStepped:Connect(function(deltaTime)
+    -- Обновление FOV круга
+    if Settings.Aimbot.ShowFOV then
+        fovCircle.Visible = true
+        fovCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+        fovCircle.Radius = Settings.Aimbot.FOV
+    else
+        fovCircle.Visible = false
+    end
+    
+    if Settings.Aimbot.Enabled then
+        local target = getClosestTarget()
+        if target then
+            -- Плавное наведение
+            local targetPos = target.Position
+            local currentCFrame = Camera.CFrame
+            local targetCFrame = CFrame.new(currentCFrame.Position, targetPos)
+            Camera.CFrame = currentCFrame:Lerp(targetCFrame, 0.3)
+            
+            -- Автошот с шансом попадания
+            if Settings.Aimbot.AutoShot then
+                local chance = math.random(1, 100)
+                if chance <= Settings.Aimbot.HitChance then
+                    -- Симуляция клика
+                    if target.Parent and target.Parent:FindFirstChild("Humanoid") then
+                        local args = {
+                            [1] = target.Parent,
+                            [2] = target,
+                            [3] = targetPos,
+                            [4] = Vector3.new(),
+                            [5] = "Head"
+                        }
+                        -- Попытка выстрела (зависит от игры One Tap)
+                        pcall(function()
+                            game:GetService("ReplicatedStorage"):FindFirstChild("GunEvent"):FireServer(unpack(args))
+                        end)
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- Применение скорости при респавне
+LocalPlayer.CharacterAdded:Connect(function(character)
+    local humanoid = character:WaitForChild("Humanoid")
+    humanoid.WalkSpeed = Settings.Player.WalkSpeed
+    humanoid.JumpPower = Settings.Player.JumpPower
+end)
+
+-- Инициализация
+if LocalPlayer.Character then
+    local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = Settings.Player.WalkSpeed
+        humanoid.JumpPower = Settings.Player.JumpPower
+    end
+end
