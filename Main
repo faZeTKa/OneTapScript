@@ -24,12 +24,9 @@ local Settings = {
     },
     Player = {
         WalkSpeed = 16,
-        JumpPower = 50,
         AntiAim = false,
-        AntiAimType = "Jitter",
         ThirdPerson = false,
         ThirdPersonDistance = 10,
-        WallShot = false,
         InfiniteJump = false,
         Fly = false,
         FlySpeed = 50,
@@ -43,11 +40,6 @@ local Settings = {
     }
 }
 
-local JitterAngles = {0, 45, 90, 135, 180, 225, 270, 315}
-local JitterIndex = 1
-local DesyncAngles = {0, 180, 90, 270, 45, 225, 135, 315}
-local DesyncIndex = 1
-
 local RaycastParams = RaycastParams.new()
 RaycastParams.FilterType = Enum.RaycastFilterType.Blacklist
 RaycastParams.IgnoreWater = true
@@ -59,9 +51,7 @@ local function isBehindWall(targetPart)
     local result = workspace:Raycast(origin, direction, RaycastParams)
     if result and result.Instance then
         local hitChar = result.Instance:FindFirstAncestorOfClass("Model")
-        if hitChar and hitChar:FindFirstChild("Humanoid") then
-            return false
-        end
+        if hitChar and hitChar:FindFirstChild("Humanoid") then return false end
         return true
     end
     return false
@@ -99,19 +89,7 @@ local function applyAntiAim()
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     local root = char.HumanoidRootPart
-    if Settings.Player.AntiAimType == "Jitter" then
-        JitterIndex = JitterIndex + 1
-        if JitterIndex > #JitterAngles then JitterIndex = 1 end
-        root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(JitterAngles[JitterIndex]), 0)
-    elseif Settings.Player.AntiAimType == "Desync" then
-        DesyncIndex = DesyncIndex + 1
-        if DesyncIndex > #DesyncAngles then DesyncIndex = 1 end
-        root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(DesyncAngles[DesyncIndex]), 0)
-    elseif Settings.Player.AntiAimType == "Spin" then
-        root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(tick() * 720 % 360), 0)
-    elseif Settings.Player.AntiAimType == "Random" then
-        root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(math.random(0, 360)), 0)
-    end
+    root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(tick() * 720 % 360), 0)
 end
 
 local AntiAimConnection = nil
@@ -214,8 +192,86 @@ local function disableInfiniteJump()
     if InfiniteJumpConnection then InfiniteJumpConnection:Disconnect() InfiniteJumpConnection = nil end
 end
 
+-- Загрузочный экран
+local LoadingGui = Instance.new("ScreenGui")
+LoadingGui.Name = "LoadingScreen"
+LoadingGui.Parent = game.CoreGui
+LoadingGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local LoadingBg = Instance.new("Frame")
+LoadingBg.Parent = LoadingGui
+LoadingBg.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+LoadingBg.BorderSizePixel = 0
+LoadingBg.Size = UDim2.new(1, 0, 1, 0)
+LoadingBg.ZIndex = 100
+
+local LoadingLogo = Instance.new("TextLabel")
+LoadingLogo.Parent = LoadingBg
+LoadingLogo.BackgroundTransparency = 1
+LoadingLogo.Position = UDim2.new(0.5, -120, 0.35, 0)
+LoadingLogo.Size = UDim2.new(0, 240, 0, 60)
+LoadingLogo.Font = Enum.Font.GothamBlack
+LoadingLogo.Text = "ONE TAP"
+LoadingLogo.TextColor3 = Color3.fromRGB(255, 50, 100)
+LoadingLogo.TextSize = 40
+LoadingLogo.ZIndex = 101
+
+local LoadingSub = Instance.new("TextLabel")
+LoadingSub.Parent = LoadingBg
+LoadingSub.BackgroundTransparency = 1
+LoadingSub.Position = UDim2.new(0.5, -120, 0.42, 0)
+LoadingSub.Size = UDim2.new(0, 240, 0, 30)
+LoadingSub.Font = Enum.Font.Gotham
+LoadingSub.Text = "by Ryzen"
+LoadingSub.TextColor3 = Color3.fromRGB(200, 200, 200)
+LoadingSub.TextSize = 16
+LoadingSub.ZIndex = 101
+
+local LoadingBarBg = Instance.new("Frame")
+LoadingBarBg.Parent = LoadingBg
+LoadingBarBg.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+LoadingBarBg.BorderSizePixel = 0
+LoadingBarBg.Position = UDim2.new(0.5, -100, 0.55, 0)
+LoadingBarBg.Size = UDim2.new(0, 200, 0, 6)
+LoadingBarBg.ZIndex = 101
+
+local LoadingBarCorner = Instance.new("UICorner")
+LoadingBarCorner.CornerRadius = UDim.new(0, 3)
+LoadingBarCorner.Parent = LoadingBarBg
+
+local LoadingBarFill = Instance.new("Frame")
+LoadingBarFill.Parent = LoadingBarBg
+LoadingBarFill.BackgroundColor3 = Color3.fromRGB(255, 50, 100)
+LoadingBarFill.BorderSizePixel = 0
+LoadingBarFill.Size = UDim2.new(0, 0, 1, 0)
+LoadingBarFill.ZIndex = 102
+
+local LoadingBarFillCorner = Instance.new("UICorner")
+LoadingBarFillCorner.CornerRadius = UDim.new(0, 3)
+LoadingBarFillCorner.Parent = LoadingBarFill
+
+local LoadingStatus = Instance.new("TextLabel")
+LoadingStatus.Parent = LoadingBg
+LoadingStatus.BackgroundTransparency = 1
+LoadingStatus.Position = UDim2.new(0.5, -100, 0.59, 0)
+LoadingStatus.Size = UDim2.new(0, 200, 0, 20)
+LoadingStatus.Font = Enum.Font.Gotham
+LoadingStatus.Text = "Loading... 0%"
+LoadingStatus.TextColor3 = Color3.fromRGB(150, 150, 150)
+LoadingStatus.TextSize = 12
+LoadingStatus.ZIndex = 101
+
+task.spawn(function()
+    for i = 0, 100 do
+        LoadingBarFill:TweenSize(UDim2.new(i/100, 0, 1, 0), "Out", "Linear", 0.02, true)
+        LoadingStatus.Text = "Loading... "..i.."%"
+        task.wait(0.015)
+    end
+    task.wait(0.3)
+    LoadingGui:Destroy()
+end)
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "OneTapHubPro"
+ScreenGui.Name = "OneTapHub"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
@@ -237,7 +293,7 @@ local TitleFrame = Instance.new("Frame")
 TitleFrame.Parent = MainFrame
 TitleFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 38)
 TitleFrame.BorderSizePixel = 0
-TitleFrame.Size = UDim2.new(1, 0, 0, 38)
+TitleFrame.Size = UDim2.new(1, 0, 0, 42)
 
 local TitleCorner = Instance.new("UICorner")
 TitleCorner.CornerRadius = UDim.new(0, 12)
@@ -250,47 +306,68 @@ TitleCover.BorderSizePixel = 0
 TitleCover.Position = UDim2.new(0, 0, 0.5, 0)
 TitleCover.Size = UDim2.new(1, 0, 0.5, 0)
 
+local TitleIcon = Instance.new("TextLabel")
+TitleIcon.Parent = TitleFrame
+TitleIcon.BackgroundTransparency = 1
+TitleIcon.Position = UDim2.new(0, 12, 0, 0)
+TitleIcon.Size = UDim2.new(0, 30, 1, 0)
+TitleIcon.Font = Enum.Font.GothamBlack
+TitleIcon.Text = "⚡"
+TitleIcon.TextColor3 = Color3.fromRGB(255, 50, 100)
+TitleIcon.TextSize = 20
+
 local Title = Instance.new("TextLabel")
 Title.Parent = TitleFrame
 Title.BackgroundTransparency = 1
-Title.Position = UDim2.new(0, 12, 0, 0)
-Title.Size = UDim2.new(0.7, 0, 1, 0)
-Title.Font = Enum.Font.GothamBold
-Title.Text = "ONE TAP HUB PRO"
+Title.Position = UDim2.new(0, 42, 0, 0)
+Title.Size = UDim2.new(0.5, 0, 1, 0)
+Title.Font = Enum.Font.GothamBlack
+Title.Text = "ONE TAP"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 16
 Title.TextXAlignment = Enum.TextXAlignment.Left
+
+local TitleVersion = Instance.new("TextLabel")
+TitleVersion.Parent = TitleFrame
+TitleVersion.BackgroundTransparency = 1
+TitleVersion.Position = UDim2.new(0.6, 0, 0, 0)
+TitleVersion.Size = UDim2.new(0, 40, 1, 0)
+TitleVersion.Font = Enum.Font.Gotham
+TitleVersion.Text = "v2"
+TitleVersion.TextColor3 = Color3.fromRGB(255, 50, 100)
+TitleVersion.TextSize = 10
+TitleVersion.TextYAlignment = Enum.TextYAlignment.Top
 
 local CloseButton = Instance.new("TextButton")
 CloseButton.Parent = TitleFrame
 CloseButton.BackgroundColor3 = Color3.fromRGB(255, 50, 100)
 CloseButton.BorderSizePixel = 0
-CloseButton.Position = UDim2.new(0.89, 0, 0.15, 0)
-CloseButton.Size = UDim2.new(0, 26, 0, 26)
+CloseButton.Position = UDim2.new(0.88, 0, 0.18, 0)
+CloseButton.Size = UDim2.new(0, 28, 0, 28)
 CloseButton.Font = Enum.Font.GothamBold
 CloseButton.Text = "x"
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseButton.TextSize = 18
 
 local CloseCorner = Instance.new("UICorner")
-CloseCorner.CornerRadius = UDim.new(0, 13)
+CloseCorner.CornerRadius = UDim.new(0, 14)
 CloseCorner.Parent = CloseButton
 
 CloseButton.MouseButton1Click:Connect(function() MainFrame.Visible = false end)
 
 local TabFrame = Instance.new("Frame")
 TabFrame.Parent = MainFrame
-TabFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 38)
+TabFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 35)
 TabFrame.BorderSizePixel = 0
-TabFrame.Position = UDim2.new(0, 0, 0, 38)
-TabFrame.Size = UDim2.new(1, 0, 0, 32)
+TabFrame.Position = UDim2.new(0, 0, 0, 42)
+TabFrame.Size = UDim2.new(1, 0, 0, 34)
 
 local PlayerTab = Instance.new("TextButton")
 PlayerTab.Parent = TabFrame
 PlayerTab.BackgroundColor3 = Color3.fromRGB(255, 50, 100)
 PlayerTab.BorderSizePixel = 0
-PlayerTab.Position = UDim2.new(0.01, 0, 0.1, 0)
-PlayerTab.Size = UDim2.new(0.24, 0, 0.8, 0)
+PlayerTab.Position = UDim2.new(0.01, 0, 0.12, 0)
+PlayerTab.Size = UDim2.new(0.24, 0, 0.76, 0)
 PlayerTab.Font = Enum.Font.GothamBold
 PlayerTab.Text = "Player"
 PlayerTab.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -304,8 +381,8 @@ local CombatTab = Instance.new("TextButton")
 CombatTab.Parent = TabFrame
 CombatTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
 CombatTab.BorderSizePixel = 0
-CombatTab.Position = UDim2.new(0.26, 0, 0.1, 0)
-CombatTab.Size = UDim2.new(0.24, 0, 0.8, 0)
+CombatTab.Position = UDim2.new(0.26, 0, 0.12, 0)
+CombatTab.Size = UDim2.new(0.24, 0, 0.76, 0)
 CombatTab.Font = Enum.Font.GothamBold
 CombatTab.Text = "Combat"
 CombatTab.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -319,8 +396,8 @@ local ESPTab = Instance.new("TextButton")
 ESPTab.Parent = TabFrame
 ESPTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
 ESPTab.BorderSizePixel = 0
-ESPTab.Position = UDim2.new(0.51, 0, 0.1, 0)
-ESPTab.Size = UDim2.new(0.24, 0, 0.8, 0)
+ESPTab.Position = UDim2.new(0.51, 0, 0.12, 0)
+ESPTab.Size = UDim2.new(0.24, 0, 0.76, 0)
 ESPTab.Font = Enum.Font.GothamBold
 ESPTab.Text = "ESP"
 ESPTab.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -334,8 +411,8 @@ local VisualsTab = Instance.new("TextButton")
 VisualsTab.Parent = TabFrame
 VisualsTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
 VisualsTab.BorderSizePixel = 0
-VisualsTab.Position = UDim2.new(0.76, 0, 0.1, 0)
-VisualsTab.Size = UDim2.new(0.23, 0, 0.8, 0)
+VisualsTab.Position = UDim2.new(0.76, 0, 0.12, 0)
+VisualsTab.Size = UDim2.new(0.23, 0, 0.76, 0)
 VisualsTab.Font = Enum.Font.GothamBold
 VisualsTab.Text = "Visuals"
 VisualsTab.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -349,9 +426,9 @@ local PlayerContent = Instance.new("ScrollingFrame")
 PlayerContent.Parent = MainFrame
 PlayerContent.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 PlayerContent.BorderSizePixel = 0
-PlayerContent.Position = UDim2.new(0, 0, 0, 70)
-PlayerContent.Size = UDim2.new(1, 0, 1, -70)
-PlayerContent.CanvasSize = UDim2.new(0, 0, 0, 800)
+PlayerContent.Position = UDim2.new(0, 0, 0, 76)
+PlayerContent.Size = UDim2.new(1, 0, 1, -76)
+PlayerContent.CanvasSize = UDim2.new(0, 0, 0, 600)
 PlayerContent.ScrollBarThickness = 3
 PlayerContent.ScrollBarImageColor3 = Color3.fromRGB(255, 50, 100)
 PlayerContent.Visible = true
@@ -360,8 +437,8 @@ local CombatContent = Instance.new("ScrollingFrame")
 CombatContent.Parent = MainFrame
 CombatContent.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 CombatContent.BorderSizePixel = 0
-CombatContent.Position = UDim2.new(0, 0, 0, 70)
-CombatContent.Size = UDim2.new(1, 0, 1, -70)
+CombatContent.Position = UDim2.new(0, 0, 0, 76)
+CombatContent.Size = UDim2.new(1, 0, 1, -76)
 CombatContent.CanvasSize = UDim2.new(0, 0, 0, 400)
 CombatContent.ScrollBarThickness = 3
 CombatContent.ScrollBarImageColor3 = Color3.fromRGB(255, 50, 100)
@@ -371,8 +448,8 @@ local ESPContent = Instance.new("ScrollingFrame")
 ESPContent.Parent = MainFrame
 ESPContent.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 ESPContent.BorderSizePixel = 0
-ESPContent.Position = UDim2.new(0, 0, 0, 70)
-ESPContent.Size = UDim2.new(1, 0, 1, -70)
+ESPContent.Position = UDim2.new(0, 0, 0, 76)
+ESPContent.Size = UDim2.new(1, 0, 1, -76)
 ESPContent.CanvasSize = UDim2.new(0, 0, 0, 500)
 ESPContent.ScrollBarThickness = 3
 ESPContent.ScrollBarImageColor3 = Color3.fromRGB(255, 50, 100)
@@ -382,8 +459,8 @@ local VisualsContent = Instance.new("ScrollingFrame")
 VisualsContent.Parent = MainFrame
 VisualsContent.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 VisualsContent.BorderSizePixel = 0
-VisualsContent.Position = UDim2.new(0, 0, 0, 70)
-VisualsContent.Size = UDim2.new(1, 0, 1, -70)
+VisualsContent.Position = UDim2.new(0, 0, 0, 76)
+VisualsContent.Size = UDim2.new(1, 0, 1, -76)
 VisualsContent.CanvasSize = UDim2.new(0, 0, 0, 300)
 VisualsContent.ScrollBarThickness = 3
 VisualsContent.ScrollBarImageColor3 = Color3.fromRGB(255, 50, 100)
@@ -454,6 +531,7 @@ local function createSection(parent, title)
     SectionLabel.TextXAlignment = Enum.TextXAlignment.Left
     return Section
 end
+
 local function createSlider(parent, name, min, max, default, suffix, callback)
     local SliderFrame = Instance.new("Frame")
     SliderFrame.BackgroundColor3 = Color3.fromRGB(32, 32, 48)
@@ -654,12 +732,6 @@ local walkSpeedSlider = createSlider(PlayerContent, "Walk Speed", 16, 200, 16, "
     if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = value end
 end)
 
-local jumpPowerSlider = createSlider(PlayerContent, "Jump Power", 50, 300, 50, "", function(value)
-    Settings.Player.JumpPower = value
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChild("Humanoid") then char.Humanoid.JumpPower = value end
-end)
-
 local infiniteJumpToggle = createToggle(PlayerContent, "Infinite Jump", function(state)
     Settings.Player.InfiniteJump = state
     if state then enableInfiniteJump() else disableInfiniteJump() end
@@ -687,10 +759,6 @@ local antiAimToggle = createToggle(PlayerContent, "Anti Aim", function(state)
     if state then enableAntiAim() else disableAntiAim() end
 end)
 
-local antiAimDropdown = createDropdown(PlayerContent, "Type", {"Jitter", "Desync", "Spin", "Random"}, function(value)
-    Settings.Player.AntiAimType = value
-end)
-
 createSection(PlayerContent, "Third Person")
 local thirdPersonToggle = createToggle(PlayerContent, "Third Person", function(state)
     Settings.Player.ThirdPerson = state
@@ -699,11 +767,6 @@ end)
 
 local thirdPersonSlider = createSlider(PlayerContent, "Distance", 5, 30, 10, "", function(value)
     Settings.Player.ThirdPersonDistance = value
-end)
-
-createSection(PlayerContent, "Wall Shot")
-local wallShotToggle = createToggle(PlayerContent, "Wall Shot", function(state)
-    Settings.Player.WallShot = state
 end)
 
 createSection(CombatContent, "Aimbot")
@@ -813,15 +876,28 @@ DragButton.Parent = ScreenGui
 DragButton.BackgroundColor3 = Color3.fromRGB(255, 50, 100)
 DragButton.BorderSizePixel = 0
 DragButton.Position = UDim2.new(0.45, 0, 0.45, 0)
-DragButton.Size = UDim2.new(0, 44, 0, 44)
+DragButton.Size = UDim2.new(0, 46, 0, 46)
 DragButton.Font = Enum.Font.GothamBlack
 DragButton.Text = "OT"
 DragButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-DragButton.TextSize = 14
+DragButton.TextSize = 15
+
+local DragGradient = Instance.new("UIGradient")
+DragGradient.Parent = DragButton
+DragGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 50, 100)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 100, 150))
+})
 
 local DragCorner = Instance.new("UICorner")
 DragCorner.CornerRadius = UDim.new(1, 0)
 DragCorner.Parent = DragButton
+
+local DragStroke = Instance.new("UIStroke")
+DragStroke.Parent = DragButton
+DragStroke.Color = Color3.fromRGB(255, 255, 255)
+DragStroke.Thickness = 1.5
+DragStroke.Transparency = 0.7
 
 local dragging = false
 local dragStart = nil
@@ -840,8 +916,8 @@ UserInputService.InputChanged:Connect(function(input)
         local delta = input.Position - dragStart
         if math.abs(delta.X) > 3 or math.abs(delta.Y) > 3 then
             clickMoved = true
-            local newX = math.clamp(startPos.X.Offset + delta.X, 0, Camera.ViewportSize.X - 44)
-            local newY = math.clamp(startPos.Y.Offset + delta.Y, 0, Camera.ViewportSize.Y - 44)
+            local newX = math.clamp(startPos.X.Offset + delta.X, 0, Camera.ViewportSize.X - 46)
+            local newY = math.clamp(startPos.Y.Offset + delta.Y, 0, Camera.ViewportSize.Y - 46)
             DragButton.Position = UDim2.new(0, newX, 0, newY)
         end
     end
@@ -863,16 +939,17 @@ fovCircle.ZIndex = 1
 local crosshairHorizontal = Drawing.new("Line")
 crosshairHorizontal.Visible = false
 crosshairHorizontal.Thickness = 2
-crosshairHorizontal.Color = Color3.fromRGB(255, 0, 0)
-crosshairHorizontal.Transparency = 0.5
+crosshairHorizontal.Color = Color3.fromRGB(255, 50, 100)
+crosshairHorizontal.Transparency = 0.4
 crosshairHorizontal.ZIndex = 10
 
 local crosshairVertical = Drawing.new("Line")
 crosshairVertical.Visible = false
 crosshairVertical.Thickness = 2
-crosshairVertical.Color = Color3.fromRGB(255, 0, 0)
-crosshairVertical.Transparency = 0.5
+crosshairVertical.Color = Color3.fromRGB(255, 50, 100)
+crosshairVertical.Transparency = 0.4
 crosshairVertical.ZIndex = 10
+
 local espCache = {}
 
 local function createESP(player)
@@ -1094,7 +1171,6 @@ end)
 LocalPlayer.CharacterAdded:Connect(function(character)
     local humanoid = character:WaitForChild("Humanoid")
     humanoid.WalkSpeed = Settings.Player.WalkSpeed
-    humanoid.JumpPower = Settings.Player.JumpPower
     task.wait(1) setupAllESP()
     if Settings.Player.Fly then task.wait(0.3) enableFly() end
     if Settings.Player.NoClip then enableNoClip() end
@@ -1104,8 +1180,5 @@ end)
 
 if LocalPlayer.Character then
     local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
-    if humanoid then
-        humanoid.WalkSpeed = Settings.Player.WalkSpeed
-        humanoid.JumpPower = Settings.Player.JumpPower
-    end
+    if humanoid then humanoid.WalkSpeed = Settings.Player.WalkSpeed end
 end
