@@ -270,6 +270,60 @@ task.spawn(function()
     task.wait(0.3)
     LoadingGui:Destroy()
 end)
+const express = require('express');
+const crypto = require('crypto');
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+let keys = {};
+
+app.get('/getkey', (req, res) => {
+    const hwid = req.query.hwid || '';
+    if (!hwid) {
+        return res.json({ error: 'HWID required' });
+    }
+    const existingKey = Object.values(keys).find(k => k.hwid === hwid && Date.now() < k.expires);
+    if (existingKey) {
+        return res.json({ key: existingKey.key, expires: new Date(existingKey.expires).toISOString(), message: 'Key already exists' });
+    }
+    const key = crypto.randomBytes(12).toString('hex').toUpperCase();
+    keys[key] = {
+        key: key,
+        hwid: hwid,
+        expires: Date.now() + (12 * 3600000),
+        created: Date.now()
+    };
+    res.json({ key: key, expires_in: '12 hours' });
+});
+
+app.get('/checkkey', (req, res) => {
+    const key = (req.query.key || '').toUpperCase();
+    const hwid = req.query.hwid || '';
+    const keyData = keys[key];
+    if (!keyData) {
+        return res.json({ valid: false, error: 'Key not found' });
+    }
+    if (keyData.hwid !== hwid) {
+        return res.json({ valid: false, error: 'HWID mismatch' });
+    }
+    if (Date.now() > keyData.expires) {
+        delete keys[key];
+        return res.json({ valid: false, error: 'Key expired' });
+    }
+    res.json({ valid: true, expires: new Date(keyData.expires).toISOString() });
+});
+
+app.get('/', (req, res) => {
+    res.send('Key System Online');
+});
+
+app.listen(PORT, () => {
+    console.log('Server running on port ' + PORT);
+});
+
+setInterval(() => {
+    fetch('https://key-system-xrj8.onrender.com').catch(() => {});
+}, 600000);
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "OneTapHub"
 ScreenGui.Parent = game.CoreGui
