@@ -18,12 +18,7 @@
 -- ⚠️ IMPORTANT: Put this code at the VERY TOP of your Main Script (before obfuscating) ⚠️
 
 local ProtectionConfig = {
-    -- 🔴 CRITICAL: This MUST exactly match the 'Secret' value in your Key System's Config!
-    -- If your Key System has: Secret = "Test"
-    -- Then this must also be: SecretKey = "Test"
     SecretKey = "LOLSCRIPTSBEST111",
-    
-    -- The name of your Hub (shown in the kick message if they try to bypass)
     HubName = "LOL HUB"
 }
 
@@ -39,8 +34,6 @@ end
 -------------------------------------------------------------------------------
 -- 👇 YOUR MAIN SCRIPT CODE STARTS HERE 👇
 -------------------------------------------------------------------------------
-print(ProtectionConfig.HubName .. " Loaded Successfully!")
-
 
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
@@ -71,9 +64,6 @@ local Settings = {
         AntiAim = false,
         ThirdPerson = false,
         ThirdPersonDistance = 10,
-        InfiniteJump = false,
-        Fly = false,
-        FlySpeed = 50,
         NoClip = false
     },
     Visuals = {
@@ -87,7 +77,6 @@ local Settings = {
 local RaycastParams = RaycastParams.new()
 RaycastParams.FilterType = Enum.RaycastFilterType.Blacklist
 RaycastParams.IgnoreWater = true
-
 local function isBehindWall(targetPart)
     local origin = Camera.CFrame.Position
     local direction = (targetPart.Position - origin).Unit * 1000
@@ -167,40 +156,6 @@ local function disableThirdPerson()
     LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
 end
 
-local FlyConnection = nil
-local function enableFly()
-    if FlyConnection then FlyConnection:Disconnect() end
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local root = char.HumanoidRootPart
-    local humanoid = char:FindFirstChild("Humanoid")
-    if not humanoid then return end
-    humanoid.PlatformStand = true
-    FlyConnection = RunService.RenderStepped:Connect(function()
-        if not Settings.Player.Fly then return end
-        local moveDirection = Vector3.new()
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDirection = moveDirection + Camera.CFrame.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDirection = moveDirection - Camera.CFrame.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDirection = moveDirection - Camera.CFrame.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDirection = moveDirection + Camera.CFrame.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDirection = moveDirection + Vector3.new(0, 1, 0) end
-        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then moveDirection = moveDirection - Vector3.new(0, 1, 0) end
-        if moveDirection.Magnitude > 0 then root.Velocity = moveDirection.Unit * Settings.Player.FlySpeed
-        else root.Velocity = Vector3.new(0, 0, 0) end
-    end)
-end
-
-local function disableFly()
-    if FlyConnection then FlyConnection:Disconnect() FlyConnection = nil end
-    local char = LocalPlayer.Character
-    if char then
-        local humanoid = char:FindFirstChild("Humanoid")
-        if humanoid then humanoid.PlatformStand = false end
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if root then root.Velocity = Vector3.new(0, 0, 0) end
-    end
-end
-
 local NoClipConnection = nil
 local function enableNoClip()
     if NoClipConnection then NoClipConnection:Disconnect() end
@@ -222,21 +177,7 @@ local function disableNoClip()
     end
 end
 
-local InfiniteJumpConnection = nil
-local function enableInfiniteJump()
-    if InfiniteJumpConnection then InfiniteJumpConnection:Disconnect() end
-    InfiniteJumpConnection = UserInputService.JumpRequest:Connect(function()
-        if Settings.Player.InfiniteJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end)
-end
-
-local function disableInfiniteJump()
-    if InfiniteJumpConnection then InfiniteJumpConnection:Disconnect() InfiniteJumpConnection = nil end
-end
-
--- Загрузочный экран
+-- Loading Screen GUI
 local LoadingGui = Instance.new("ScreenGui")
 LoadingGui.Name = "LoadingScreen"
 LoadingGui.Parent = game.CoreGui
@@ -255,9 +196,9 @@ LoadingLogo.BackgroundTransparency = 1
 LoadingLogo.Position = UDim2.new(0.5, -120, 0.35, 0)
 LoadingLogo.Size = UDim2.new(0, 240, 0, 60)
 LoadingLogo.Font = Enum.Font.GothamBlack
-LoadingLogo.Text = "ONE TAP"
+LoadingLogo.Text = "LOL SCRIPTS"
 LoadingLogo.TextColor3 = Color3.fromRGB(255, 50, 100)
-LoadingLogo.TextSize = 40
+LoadingLogo.TextSize = 36
 LoadingLogo.ZIndex = 101
 
 local LoadingSub = Instance.new("TextLabel")
@@ -266,7 +207,7 @@ LoadingSub.BackgroundTransparency = 1
 LoadingSub.Position = UDim2.new(0.5, -120, 0.42, 0)
 LoadingSub.Size = UDim2.new(0, 240, 0, 30)
 LoadingSub.Font = Enum.Font.Gotham
-LoadingSub.Text = "by Ryzen"
+LoadingSub.Text = "by OYB"
 LoadingSub.TextColor3 = Color3.fromRGB(200, 200, 200)
 LoadingSub.TextSize = 16
 LoadingSub.ZIndex = 101
@@ -314,8 +255,9 @@ task.spawn(function()
     task.wait(0.3)
     LoadingGui:Destroy()
 end)
+-- Main GUI
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "OneTapHub"
+ScreenGui.Name = "LolScriptsHub"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
@@ -366,21 +308,10 @@ Title.BackgroundTransparency = 1
 Title.Position = UDim2.new(0, 42, 0, 0)
 Title.Size = UDim2.new(0.5, 0, 1, 0)
 Title.Font = Enum.Font.GothamBlack
-Title.Text = "ONE TAP"
+Title.Text = "LOL SCRIPTS"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 16
+Title.TextSize = 15
 Title.TextXAlignment = Enum.TextXAlignment.Left
-
-local TitleVersion = Instance.new("TextLabel")
-TitleVersion.Parent = TitleFrame
-TitleVersion.BackgroundTransparency = 1
-TitleVersion.Position = UDim2.new(0.6, 0, 0, 0)
-TitleVersion.Size = UDim2.new(0, 40, 1, 0)
-TitleVersion.Font = Enum.Font.Gotham
-TitleVersion.Text = "v2"
-TitleVersion.TextColor3 = Color3.fromRGB(255, 50, 100)
-TitleVersion.TextSize = 10
-TitleVersion.TextYAlignment = Enum.TextYAlignment.Top
 
 local CloseButton = Instance.new("TextButton")
 CloseButton.Parent = TitleFrame
@@ -466,13 +397,14 @@ local VisualsTabCorner = Instance.new("UICorner")
 VisualsTabCorner.CornerRadius = UDim.new(0, 6)
 VisualsTabCorner.Parent = VisualsTab
 
+-- Content Frames
 local PlayerContent = Instance.new("ScrollingFrame")
 PlayerContent.Parent = MainFrame
 PlayerContent.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 PlayerContent.BorderSizePixel = 0
 PlayerContent.Position = UDim2.new(0, 0, 0, 76)
 PlayerContent.Size = UDim2.new(1, 0, 1, -76)
-PlayerContent.CanvasSize = UDim2.new(0, 0, 0, 600)
+PlayerContent.CanvasSize = UDim2.new(0, 0, 0, 400)
 PlayerContent.ScrollBarThickness = 3
 PlayerContent.ScrollBarImageColor3 = Color3.fromRGB(255, 50, 100)
 PlayerContent.Visible = true
@@ -509,7 +441,7 @@ VisualsContent.CanvasSize = UDim2.new(0, 0, 0, 300)
 VisualsContent.ScrollBarThickness = 3
 VisualsContent.ScrollBarImageColor3 = Color3.fromRGB(255, 50, 100)
 VisualsContent.Visible = false
-
+-- Layouts and Padding
 local PlayerLayout = Instance.new("UIListLayout")
 PlayerLayout.Parent = PlayerContent
 PlayerLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -554,6 +486,7 @@ VisualsPadding.PaddingLeft = UDim.new(0, 10)
 VisualsPadding.PaddingRight = UDim.new(0, 10)
 VisualsPadding.PaddingTop = UDim.new(0, 8)
 
+-- UI Element Functions
 local function createSection(parent, title)
     local Section = Instance.new("Frame")
     Section.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
@@ -769,26 +702,12 @@ local function createDropdown(parent, name, options, callback)
     return { getValue = function() return options[selectedIndex] end, frame = DropFrame }
 end
 
+-- Tab Content
 createSection(PlayerContent, "Movement")
 local walkSpeedSlider = createSlider(PlayerContent, "Walk Speed", 16, 200, 16, " studs", function(value)
     Settings.Player.WalkSpeed = value
     local char = LocalPlayer.Character
     if char and char:FindFirstChild("Humanoid") then char.Humanoid.WalkSpeed = value end
-end)
-
-local infiniteJumpToggle = createToggle(PlayerContent, "Infinite Jump", function(state)
-    Settings.Player.InfiniteJump = state
-    if state then enableInfiniteJump() else disableInfiniteJump() end
-end)
-
-createSection(PlayerContent, "Fly")
-local flyToggle = createToggle(PlayerContent, "Fly", function(state)
-    Settings.Player.Fly = state
-    if state then enableFly() else disableFly() end
-end)
-
-local flySpeedSlider = createSlider(PlayerContent, "Fly Speed", 20, 200, 50, "", function(value)
-    Settings.Player.FlySpeed = value
 end)
 
 createSection(PlayerContent, "No Clip")
@@ -886,11 +805,17 @@ local fovValueSlider = createSlider(VisualsContent, "FOV Value", 30, 120, 70, ""
     if Settings.Visuals.FOVChanger then Camera.FieldOfView = value end
 end)
 
-PlayerContent.CanvasSize = UDim2.new(0, 0, 0, PlayerLayout.AbsoluteContentSize.Y + 15)
-CombatContent.CanvasSize = UDim2.new(0, 0, 0, CombatLayout.AbsoluteContentSize.Y + 15)
-ESPContent.CanvasSize = UDim2.new(0, 0, 0, ESPLayout.AbsoluteContentSize.Y + 15)
-VisualsContent.CanvasSize = UDim2.new(0, 0, 0, VisualsLayout.AbsoluteContentSize.Y + 15)
+-- Update Canvas Sizes
+task.spawn(function()
+    while task.wait(0.2) do
+        PlayerContent.CanvasSize = UDim2.new(0, 0, 0, PlayerLayout.AbsoluteContentSize.Y + 15)
+        CombatContent.CanvasSize = UDim2.new(0, 0, 0, CombatLayout.AbsoluteContentSize.Y + 15)
+        ESPContent.CanvasSize = UDim2.new(0, 0, 0, ESPLayout.AbsoluteContentSize.Y + 15)
+        VisualsContent.CanvasSize = UDim2.new(0, 0, 0, VisualsLayout.AbsoluteContentSize.Y + 15)
+    end
+end)
 
+-- Tab Switching
 PlayerTab.MouseButton1Click:Connect(function()
     PlayerContent.Visible = true CombatContent.Visible = false ESPContent.Visible = false VisualsContent.Visible = false
     PlayerTab.BackgroundColor3 = Color3.fromRGB(255, 50, 100) CombatTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
@@ -915,6 +840,7 @@ VisualsTab.MouseButton1Click:Connect(function()
     CombatTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55) ESPTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
 end)
 
+-- Draggable Icon
 local DragButton = Instance.new("TextButton")
 DragButton.Parent = ScreenGui
 DragButton.BackgroundColor3 = Color3.fromRGB(255, 50, 100)
@@ -922,7 +848,7 @@ DragButton.BorderSizePixel = 0
 DragButton.Position = UDim2.new(0.45, 0, 0.45, 0)
 DragButton.Size = UDim2.new(0, 46, 0, 46)
 DragButton.Font = Enum.Font.GothamBlack
-DragButton.Text = "OT"
+DragButton.Text = "LS"
 DragButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 DragButton.TextSize = 15
 
@@ -971,6 +897,7 @@ DragButton.MouseButton1Click:Connect(function()
     if not clickMoved then MainFrame.Visible = not MainFrame.Visible end
 end)
 
+-- Drawings
 local fovCircle = Drawing.new("Circle")
 fovCircle.Visible = false
 fovCircle.Thickness = 1.2
@@ -994,235 +921,9 @@ crosshairVertical.Color = Color3.fromRGB(255, 50, 100)
 crosshairVertical.Transparency = 0.4
 crosshairVertical.ZIndex = 10
 
+-- ESP System
 local espCache = {}
 
 local function createESP(player)
     if espCache[player] then return end
-    local boxOutline = Drawing.new("Square")
-    boxOutline.Visible = false
-    boxOutline.Thickness = 3
-    boxOutline.Color = Color3.fromRGB(0, 0, 0)
-    boxOutline.Transparency = 0.8
-    boxOutline.Filled = false
-    boxOutline.ZIndex = 2
-    local box = Drawing.new("Square")
-    box.Visible = false
-    box.Thickness = 1.5
-    box.Color = Color3.fromRGB(255, 255, 255)
-    box.Transparency = 0.6
-    box.Filled = false
-    box.ZIndex = 3
-    local healthBarBg = Drawing.new("Square")
-    healthBarBg.Visible = false
-    healthBarBg.Thickness = 1
-    healthBarBg.Color = Color3.fromRGB(0, 0, 0)
-    healthBarBg.Transparency = 0.7
-    healthBarBg.Filled = true
-    healthBarBg.ZIndex = 2
-    local healthBar = Drawing.new("Square")
-    healthBar.Visible = false
-    healthBar.Thickness = 1
-    healthBar.Color = Color3.fromRGB(100, 255, 100)
-    healthBar.Transparency = 0.5
-    healthBar.Filled = true
-    healthBar.ZIndex = 3
-    local tracer = Drawing.new("Line")
-    tracer.Visible = false
-    tracer.Thickness = 1
-    tracer.Color = Color3.fromRGB(255, 255, 255)
-    tracer.Transparency = 0.5
-    tracer.ZIndex = 2
-    local nameTag = Drawing.new("Text")
-    nameTag.Visible = false
-    nameTag.Color = Color3.fromRGB(255, 255, 255)
-    nameTag.Size = 14
-    nameTag.Center = true
-    nameTag.Outline = true
-    nameTag.OutlineColor = Color3.fromRGB(0, 0, 0)
-    nameTag.Font = 2
-    nameTag.ZIndex = 3
-    local distanceTag = Drawing.new("Text")
-    distanceTag.Visible = false
-    distanceTag.Color = Color3.fromRGB(255, 255, 255)
-    distanceTag.Size = 13
-    distanceTag.Center = true
-    distanceTag.Outline = true
-    distanceTag.OutlineColor = Color3.fromRGB(0, 0, 0)
-    distanceTag.Font = 2
-    distanceTag.ZIndex = 3
-    local headDot = Drawing.new("Circle")
-    headDot.Visible = false
-    headDot.Thickness = 1
-    headDot.Color = Color3.fromRGB(255, 0, 0)
-    headDot.Transparency = 0.5
-    headDot.Filled = true
-    headDot.NumSides = 32
-    headDot.Radius = 6
-    headDot.ZIndex = 3
-    espCache[player] = {
-        BoxOutline = boxOutline, Box = box, HealthBarBg = healthBarBg, HealthBar = healthBar,
-        Tracer = tracer, Name = nameTag, Distance = distanceTag, HeadDot = headDot
-    }
-end
-
-local function removeESP(player)
-    if espCache[player] then
-        for _, drawing in pairs(espCache[player]) do
-            pcall(function() drawing:Remove() end)
-        end
-        espCache[player] = nil
-    end
-end
-
-local function updateESP()
-    for player, drawings in pairs(espCache) do
-        if not player or not player.Parent then removeESP(player) continue end
-        if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
-            for _, d in pairs(drawings) do d.Visible = false end continue
-        end
-        if not Settings.ESP.Enabled then
-            for _, d in pairs(drawings) do d.Visible = false end continue
-        end
-        local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
-        local head = player.Character:FindFirstChild("Head")
-        local humanoid = player.Character:FindFirstChild("Humanoid")
-        if not rootPart or not head or not humanoid then
-            for _, d in pairs(drawings) do d.Visible = false end continue
-        end
-        local rootPos, rootOnScreen = Camera:WorldToViewportPoint(rootPart.Position)
-        local headPos, headOnScreen = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.8, 0))
-        local legPos = rootPart.Position - Vector3.new(0, 3, 0)
-        local legScreen, legOnScreen = Camera:WorldToViewportPoint(legPos)
-        if not rootOnScreen and not headOnScreen then
-            for _, d in pairs(drawings) do d.Visible = false end continue
-        end
-        local topY = headPos.Y
-        local bottomY = math.max(rootPos.Y, legScreen.Y)
-        local fullHeight = math.abs(bottomY - topY)
-        local fullWidth = fullHeight * 0.5
-        local boxX = rootPos.X - fullWidth / 2
-        if Settings.ESP.Boxes then
-            drawings.BoxOutline.Visible = true
-            drawings.BoxOutline.Position = Vector2.new(boxX - 1, topY - 1)
-            drawings.BoxOutline.Size = Vector2.new(fullWidth + 2, fullHeight + 2)
-            drawings.Box.Visible = true
-            drawings.Box.Position = Vector2.new(boxX, topY)
-            drawings.Box.Size = Vector2.new(fullWidth, fullHeight)
-        else
-            drawings.BoxOutline.Visible = false drawings.Box.Visible = false
-        end
-        if Settings.ESP.HealthBar then
-            local healthPercent = humanoid.Health / humanoid.MaxHealth
-            local barHeight = fullHeight * healthPercent
-            local barWidth = 4
-            local barX = boxX - barWidth - 4
-            local barY = topY + fullHeight - barHeight
-            drawings.HealthBarBg.Visible = true
-            drawings.HealthBarBg.Position = Vector2.new(barX, topY)
-            drawings.HealthBarBg.Size = Vector2.new(barWidth, fullHeight)
-            drawings.HealthBar.Visible = true
-            drawings.HealthBar.Position = Vector2.new(barX, barY)
-            drawings.HealthBar.Size = Vector2.new(barWidth, barHeight)
-            if healthPercent > 0.6 then drawings.HealthBar.Color = Color3.fromRGB(100, 255, 100)
-            elseif healthPercent > 0.3 then drawings.HealthBar.Color = Color3.fromRGB(255, 255, 100)
-            else drawings.HealthBar.Color = Color3.fromRGB(255, 100, 100) end
-        else
-            drawings.HealthBarBg.Visible = false drawings.HealthBar.Visible = false
-        end
-        if Settings.ESP.Tracers then
-            drawings.Tracer.Visible = true
-            drawings.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-            drawings.Tracer.To = Vector2.new(rootPos.X, rootPos.Y)
-        else
-            drawings.Tracer.Visible = false
-        end
-        if Settings.ESP.Names then
-            drawings.Name.Visible = true
-            drawings.Name.Text = player.Name
-            drawings.Name.Position = Vector2.new(headPos.X, headPos.Y - 24)
-        else
-            drawings.Name.Visible = false
-        end
-        if Settings.ESP.Distance then
-            local dist = 0
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                dist = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude)
-            end
-            drawings.Distance.Visible = true
-            drawings.Distance.Text = "["..dist.."m]"
-            drawings.Distance.Position = Vector2.new(headPos.X, headPos.Y - 38)
-        else
-            drawings.Distance.Visible = false
-        end
-        if Settings.ESP.HeadDot then
-            drawings.HeadDot.Visible = true
-            drawings.HeadDot.Position = Vector2.new(headPos.X, headPos.Y)
-        else
-            drawings.HeadDot.Visible = false
-        end
-    end
-end
-
-local function setupAllESP()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then createESP(player) end
-    end
-end
-
-setupAllESP()
-
-Players.PlayerAdded:Connect(function(player)
-    if player ~= LocalPlayer then task.wait(1) createESP(player) end
-end)
-
-Players.PlayerRemoving:Connect(function(player) removeESP(player) end)
-
-RunService.RenderStepped:Connect(function()
-    if Settings.Aimbot.ShowFOV then
-        fovCircle.Visible = true
-        fovCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-        fovCircle.Radius = Settings.Aimbot.FOV
-    else
-        fovCircle.Visible = false
-    end
-    if Settings.Visuals.Crosshair then
-        crosshairHorizontal.Visible = true crosshairVertical.Visible = true
-        local centerX = Camera.ViewportSize.X / 2
-        local centerY = Camera.ViewportSize.Y / 2
-        local size = Settings.Visuals.CrosshairSize
-        crosshairHorizontal.From = Vector2.new(centerX - size, centerY)
-        crosshairHorizontal.To = Vector2.new(centerX + size, centerY)
-        crosshairVertical.From = Vector2.new(centerX, centerY - size)
-        crosshairVertical.To = Vector2.new(centerX, centerY + size)
-    else
-        crosshairHorizontal.Visible = false crosshairVertical.Visible = false
-    end
-    if Settings.Aimbot.Enabled then
-        local target = getClosestTarget()
-        if target then
-            local smoothFactor = Settings.Aimbot.Smoothness
-            if smoothFactor <= 1 then
-                Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
-            else
-                local targetCFrame = CFrame.new(Camera.CFrame.Position, target.Position)
-                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 1 / smoothFactor)
-            end
-        end
-    end
-    updateESP()
-end)
-
-LocalPlayer.CharacterAdded:Connect(function(character)
-    local humanoid = character:WaitForChild("Humanoid")
-    humanoid.WalkSpeed = Settings.Player.WalkSpeed
-    task.wait(1) setupAllESP()
-    if Settings.Player.Fly then task.wait(0.3) enableFly() end
-    if Settings.Player.NoClip then enableNoClip() end
-    if Settings.Player.AntiAim then enableAntiAim() end
-    if Settings.Player.ThirdPerson then enableThirdPerson() end
-end)
-
-if LocalPlayer.Character then
-    local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
-    if humanoid then humanoid.WalkSpeed = Settings.Player.WalkSpeed end
-end
+  
