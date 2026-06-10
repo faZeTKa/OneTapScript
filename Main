@@ -3,32 +3,57 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
+local UserInputService = game:GetService("UserInputService")
 
 local Settings = {
     Aimbot = {
         Enabled = false,
         FOV = 150,
         ShowFOV = false,
-        WallCheck = true
+        WallCheck = true,
+        Smoothness = 1,
+        TargetPart = "Head",
+        VisibleOnly = true
     },
     ESP = {
         Enabled = false,
         Boxes = false,
         Tracers = false,
         Names = false,
-        HealthBar = false
+        HealthBar = false,
+        Distance = false,
+        Chams = false,
+        Glow = false,
+        Skeleton = false,
+        HeadDot = false
     },
     Player = {
         WalkSpeed = 16,
+        JumpPower = 50,
         AntiAim = false,
-        ThirdPerson = false
+        AntiAimType = "Jitter",
+        ThirdPerson = false,
+        ThirdPersonDistance = 10,
+        WallShot = false,
+        InfiniteJump = false,
+        Fly = false,
+        FlySpeed = 50,
+        NoClip = false
+    },
+    Visuals = {
+        Crosshair = false,
+        CrosshairSize = 20,
+        CrosshairColor = Color3.fromRGB(255, 0, 0),
+        FOVChanger = false,
+        FOVValue = 70
     }
 }
 
-local AntiAimConnection = nil
-local AntiAimAngles = {0, 90, 180, 270, -90, -180, -270, 360}
-local AntiAimIndex = 1
-local ThirdPersonConnection = nil
+local JitterAngles = {0, 45, 90, 135, 180, 225, 270, 315}
+local JitterIndex = 1
+local DesyncAngles = {0, 180, 90, 270, 45, 225, 135, 315}
+local DesyncIndex = 1
 
 local RaycastParams = RaycastParams.new()
 RaycastParams.FilterType = Enum.RaycastFilterType.Blacklist
@@ -55,7 +80,14 @@ local function getClosestTarget()
     local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
-            local targetPart = player.Character:FindFirstChild("Head") or player.Character:FindFirstChild("HumanoidRootPart")
+            local targetPart = nil
+            if Settings.Aimbot.TargetPart == "Head" then
+                targetPart = player.Character:FindFirstChild("Head")
+            elseif Settings.Aimbot.TargetPart == "Torso" then
+                targetPart = player.Character:FindFirstChild("HumanoidRootPart")
+            else
+                targetPart = player.Character:FindFirstChild(Settings.Aimbot.TargetPart)
+            end
             if targetPart then
                 local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
                 if onScreen then
@@ -76,13 +108,27 @@ local function applyAntiAim()
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     local root = char.HumanoidRootPart
-    AntiAimIndex = AntiAimIndex + 1
-    if AntiAimIndex > #AntiAimAngles then AntiAimIndex = 1 end
-    local angle = AntiAimAngles[AntiAimIndex]
-    local radians = math.rad(angle)
-    root.CFrame = root.CFrame * CFrame.Angles(0, radians, 0)
+    if Settings.Player.AntiAimType == "Jitter" then
+        JitterIndex = JitterIndex + 1
+        if JitterIndex > #JitterAngles then JitterIndex = 1 end
+        local angle = math.rad(JitterAngles[JitterIndex])
+        root.CFrame = root.CFrame * CFrame.Angles(0, angle, 0)
+    elseif Settings.Player.AntiAimType == "Desync" then
+        DesyncIndex = DesyncIndex + 1
+        if DesyncIndex > #DesyncAngles then DesyncIndex = 1 end
+        local angle = math.rad(DesyncAngles[DesyncIndex])
+        root.CFrame = root.CFrame * CFrame.Angles(0, angle, 0)
+        if char:FindFirstChild("Humanoid") then
+            char.Humanoid.AutoRotate = false
+        end
+    elseif Settings.Player.AntiAimType == "Spin" then
+        root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(tick() * 360 % 360), 0)
+    elseif Settings.Player.AntiAimType == "Random" then
+        root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(math.random(0, 360)), 0)
+    end
 end
 
+local AntiAimConnection = nil
 local function enableAntiAim()
     if AntiAimConnection then AntiAimConnection:Disconnect() end
     AntiAimConnection = RunService.RenderStepped:Connect(function()
@@ -97,14 +143,21 @@ local function disableAntiAim()
         AntiAimConnection:Disconnect()
         AntiAimConnection = nil
     end
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.AutoRotate = true
+    end
 end
 
+local ThirdPersonConnection = nil
 local function enableThirdPerson()
     if ThirdPersonConnection then ThirdPersonConnection:Disconnect() end
     ThirdPersonConnection = RunService.RenderStepped:Connect(function()
         if Settings.Player.ThirdPerson and LocalPlayer.Character then
             LocalPlayer.CameraMode = Enum.CameraMode.Classic
-            LocalPlayer.Character.Humanoid.CameraOffset = Vector3.new(3, 1.5, 8)
+            pcall(function()
+                LocalPlayer.CameraMaxZoomDistance = Settings.Player.ThirdPersonDistance
+                LocalPlayer.CameraMinZoomDistance = Settings.Player.ThirdPersonDistance
+            end)
         end
     end)
 end
@@ -114,9 +167,111 @@ local function disableThirdPerson()
         ThirdPersonConnection:Disconnect()
         ThirdPersonConnection = nil
     end
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.CameraOffset = Vector3.new(0, 0, 0)
+    pcall(function()
+        LocalPlayer.CameraMaxZoomDistance = 400
+        LocalPlayer.CameraMinZoomDistance = 0.5
         LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
+    end)
+end
+
+local FlyConnection = nil
+local function enableFly()
+    if FlyConnection then FlyConnection:Disconnect() end
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local root = char.HumanoidRootPart
+    local humanoid = char:FindFirstChild("Humanoid")
+    if not humanoid then return end
+    humanoid.PlatformStand = true
+    FlyConnection = RunService.RenderStepped:Connect(function()
+        if not Settings.Player.Fly then return end
+        local moveDirection = Vector3.new()
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+            moveDirection = moveDirection + Camera.CFrame.LookVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            moveDirection = moveDirection - Camera.CFrame.LookVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+            moveDirection = moveDirection - Camera.CFrame.RightVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+            moveDirection = moveDirection + Camera.CFrame.RightVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            moveDirection = moveDirection + Vector3.new(0, 1, 0)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+            moveDirection = moveDirection - Vector3.new(0, 1, 0)
+        end
+        if moveDirection.Magnitude > 0 then
+            root.Velocity = moveDirection.Unit * Settings.Player.FlySpeed
+        else
+            root.Velocity = Vector3.new(0, 0, 0)
+        end
+    end)
+end
+
+local function disableFly()
+    if FlyConnection then
+        FlyConnection:Disconnect()
+        FlyConnection = nil
+    end
+    local char = LocalPlayer.Character
+    if char then
+        local humanoid = char:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.PlatformStand = false
+        end
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if root then
+            root.Velocity = Vector3.new(0, 0, 0)
+        end
+    end
+end
+
+local NoClipConnection = nil
+local function enableNoClip()
+    if NoClipConnection then NoClipConnection:Disconnect() end
+    NoClipConnection = RunService.Stepped:Connect(function()
+        if Settings.Player.NoClip and LocalPlayer.Character then
+            for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end)
+end
+
+local function disableNoClip()
+    if NoClipConnection then
+        NoClipConnection:Disconnect()
+        NoClipConnection = nil
+    end
+    if LocalPlayer.Character then
+        for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+    end
+end
+
+local InfiniteJumpConnection = nil
+local function enableInfiniteJump()
+    if InfiniteJumpConnection then InfiniteJumpConnection:Disconnect() end
+    InfiniteJumpConnection = UserInputService.JumpRequest:Connect(function()
+        if Settings.Player.InfiniteJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end)
+end
+
+local function disableInfiniteJump()
+    if InfiniteJumpConnection then
+        InfiniteJumpConnection:Disconnect()
+        InfiniteJumpConnection = nil
     end
 end
 
@@ -129,8 +284,8 @@ local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 MainFrame.BorderSizePixel = 0
-MainFrame.Position = UDim2.new(0.1, 0, 0.12, 0)
-MainFrame.Size = UDim2.new(0, 340, 0, 380)
+MainFrame.Position = UDim2.new(0.1, 0, 0.1, 0)
+MainFrame.Size = UDim2.new(0, 340, 0, 400)
 MainFrame.Visible = false
 MainFrame.Active = true
 MainFrame.Draggable = true
@@ -162,7 +317,7 @@ Title.BackgroundTransparency = 1
 Title.Position = UDim2.new(0, 12, 0, 0)
 Title.Size = UDim2.new(0.7, 0, 1, 0)
 Title.Font = Enum.Font.GothamBold
-Title.Text = "ONE TAP HUB"
+Title.Text = "ONE TAP HUB PRO"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 16
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -198,11 +353,11 @@ PlayerTab.Parent = TabFrame
 PlayerTab.BackgroundColor3 = Color3.fromRGB(255, 50, 100)
 PlayerTab.BorderSizePixel = 0
 PlayerTab.Position = UDim2.new(0.01, 0, 0.1, 0)
-PlayerTab.Size = UDim2.new(0.31, 0, 0.8, 0)
+PlayerTab.Size = UDim2.new(0.24, 0, 0.8, 0)
 PlayerTab.Font = Enum.Font.GothamBold
 PlayerTab.Text = "Player"
 PlayerTab.TextColor3 = Color3.fromRGB(255, 255, 255)
-PlayerTab.TextSize = 11
+PlayerTab.TextSize = 10
 
 local PlayerTabCorner = Instance.new("UICorner")
 PlayerTabCorner.CornerRadius = UDim.new(0, 6)
@@ -212,12 +367,12 @@ local CombatTab = Instance.new("TextButton")
 CombatTab.Parent = TabFrame
 CombatTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
 CombatTab.BorderSizePixel = 0
-CombatTab.Position = UDim2.new(0.34, 0, 0.1, 0)
-CombatTab.Size = UDim2.new(0.31, 0, 0.8, 0)
+CombatTab.Position = UDim2.new(0.26, 0, 0.1, 0)
+CombatTab.Size = UDim2.new(0.24, 0, 0.8, 0)
 CombatTab.Font = Enum.Font.GothamBold
 CombatTab.Text = "Combat"
 CombatTab.TextColor3 = Color3.fromRGB(200, 200, 200)
-CombatTab.TextSize = 11
+CombatTab.TextSize = 10
 
 local CombatTabCorner = Instance.new("UICorner")
 CombatTabCorner.CornerRadius = UDim.new(0, 6)
@@ -227,16 +382,31 @@ local ESPTab = Instance.new("TextButton")
 ESPTab.Parent = TabFrame
 ESPTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
 ESPTab.BorderSizePixel = 0
-ESPTab.Position = UDim2.new(0.67, 0, 0.1, 0)
-ESPTab.Size = UDim2.new(0.31, 0, 0.8, 0)
+ESPTab.Position = UDim2.new(0.51, 0, 0.1, 0)
+ESPTab.Size = UDim2.new(0.24, 0, 0.8, 0)
 ESPTab.Font = Enum.Font.GothamBold
 ESPTab.Text = "ESP"
 ESPTab.TextColor3 = Color3.fromRGB(200, 200, 200)
-ESPTab.TextSize = 11
+ESPTab.TextSize = 10
 
 local ESPTabCorner = Instance.new("UICorner")
 ESPTabCorner.CornerRadius = UDim.new(0, 6)
 ESPTabCorner.Parent = ESPTab
+
+local VisualsTab = Instance.new("TextButton")
+VisualsTab.Parent = TabFrame
+VisualsTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+VisualsTab.BorderSizePixel = 0
+VisualsTab.Position = UDim2.new(0.76, 0, 0.1, 0)
+VisualsTab.Size = UDim2.new(0.23, 0, 0.8, 0)
+VisualsTab.Font = Enum.Font.GothamBold
+VisualsTab.Text = "Visuals"
+VisualsTab.TextColor3 = Color3.fromRGB(200, 200, 200)
+VisualsTab.TextSize = 10
+
+local VisualsTabCorner = Instance.new("UICorner")
+VisualsTabCorner.CornerRadius = UDim.new(0, 6)
+VisualsTabCorner.Parent = VisualsTab
 
 local PlayerContent = Instance.new("ScrollingFrame")
 PlayerContent.Parent = MainFrame
@@ -244,7 +414,7 @@ PlayerContent.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 PlayerContent.BorderSizePixel = 0
 PlayerContent.Position = UDim2.new(0, 0, 0, 70)
 PlayerContent.Size = UDim2.new(1, 0, 1, -70)
-PlayerContent.CanvasSize = UDim2.new(0, 0, 0, 300)
+PlayerContent.CanvasSize = UDim2.new(0, 0, 0, 800)
 PlayerContent.ScrollBarThickness = 3
 PlayerContent.ScrollBarImageColor3 = Color3.fromRGB(255, 50, 100)
 PlayerContent.Visible = true
@@ -266,10 +436,21 @@ ESPContent.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 ESPContent.BorderSizePixel = 0
 ESPContent.Position = UDim2.new(0, 0, 0, 70)
 ESPContent.Size = UDim2.new(1, 0, 1, -70)
-ESPContent.CanvasSize = UDim2.new(0, 0, 0, 400)
+ESPContent.CanvasSize = UDim2.new(0, 0, 0, 600)
 ESPContent.ScrollBarThickness = 3
 ESPContent.ScrollBarImageColor3 = Color3.fromRGB(255, 50, 100)
 ESPContent.Visible = false
+
+local VisualsContent = Instance.new("ScrollingFrame")
+VisualsContent.Parent = MainFrame
+VisualsContent.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+VisualsContent.BorderSizePixel = 0
+VisualsContent.Position = UDim2.new(0, 0, 0, 70)
+VisualsContent.Size = UDim2.new(1, 0, 1, -70)
+VisualsContent.CanvasSize = UDim2.new(0, 0, 0, 300)
+VisualsContent.ScrollBarThickness = 3
+VisualsContent.ScrollBarImageColor3 = Color3.fromRGB(255, 50, 100)
+VisualsContent.Visible = false
 
 local PlayerLayout = Instance.new("UIListLayout")
 PlayerLayout.Parent = PlayerContent
@@ -285,6 +466,11 @@ local ESPLayout = Instance.new("UIListLayout")
 ESPLayout.Parent = ESPContent
 ESPLayout.SortOrder = Enum.SortOrder.LayoutOrder
 ESPLayout.Padding = UDim.new(0, 8)
+
+local VisualsLayout = Instance.new("UIListLayout")
+VisualsLayout.Parent = VisualsContent
+VisualsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+VisualsLayout.Padding = UDim.new(0, 8)
 
 local PlayerPadding = Instance.new("UIPadding")
 PlayerPadding.Parent = PlayerContent
@@ -304,6 +490,11 @@ ESPPadding.PaddingLeft = UDim.new(0, 10)
 ESPPadding.PaddingRight = UDim.new(0, 10)
 ESPPadding.PaddingTop = UDim.new(0, 8)
 
+local VisualsPadding = Instance.new("UIPadding")
+VisualsPadding.Parent = VisualsContent
+VisualsPadding.PaddingLeft = UDim.new(0, 10)
+VisualsPadding.PaddingRight = UDim.new(0, 10)
+VisualsPadding.PaddingTop = UDim.new(0, 8)
 local function createSection(parent, title)
     local Section = Instance.new("Frame")
     Section.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
@@ -480,6 +671,60 @@ local function createToggle(parent, name, callback)
     }
 end
 
+local function createDropdown(parent, name, options, callback)
+    local DropFrame = Instance.new("Frame")
+    DropFrame.BackgroundColor3 = Color3.fromRGB(32, 32, 48)
+    DropFrame.BorderSizePixel = 0
+    DropFrame.Size = UDim2.new(1, 0, 0, 36)
+    DropFrame.Parent = parent
+    local DropCorner = Instance.new("UICorner")
+    DropCorner.CornerRadius = UDim.new(0, 8)
+    DropCorner.Parent = DropFrame
+    local DropLabel = Instance.new("TextLabel")
+    DropLabel.Parent = DropFrame
+    DropLabel.BackgroundTransparency = 1
+    DropLabel.Position = UDim2.new(0, 10, 0, 0)
+    DropLabel.Size = UDim2.new(0.5, 0, 1, 0)
+    DropLabel.Font = Enum.Font.Gotham
+    DropLabel.Text = name..": "..options[1]
+    DropLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    DropLabel.TextSize = 11
+    DropLabel.TextXAlignment = Enum.TextXAlignment.Left
+    local selectedIndex = 1
+    local DropButton = Instance.new("TextButton")
+    DropButton.Parent = DropFrame
+    DropButton.BackgroundColor3 = Color3.fromRGB(55, 55, 70)
+    DropButton.BorderSizePixel = 0
+    DropButton.Position = UDim2.new(0.7, 0, 0.15, 0)
+    DropButton.Size = UDim2.new(0.25, 0, 0.7, 0)
+    DropButton.Font = Enum.Font.GothamBold
+    DropButton.Text = ">"
+    DropButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    DropButton.TextSize = 14
+    local DropCorner2 = Instance.new("UICorner")
+    DropCorner2.CornerRadius = UDim.new(0, 6)
+    DropCorner2.Parent = DropButton
+    DropButton.MouseButton1Click:Connect(function()
+        selectedIndex = selectedIndex + 1
+        if selectedIndex > #options then selectedIndex = 1 end
+        DropLabel.Text = name..": "..options[selectedIndex]
+        if callback then callback(options[selectedIndex]) end
+    end)
+    return {
+        getValue = function() return options[selectedIndex] end,
+        setValue = function(v)
+            for i, opt in ipairs(options) do
+                if opt == v then
+                    selectedIndex = i
+                    DropLabel.Text = name..": "..opt
+                    break
+                end
+            end
+        end,
+        frame = DropFrame
+    }
+end
+
 createSection(PlayerContent, "Movement")
 local walkSpeedSlider = createSlider(PlayerContent, "Walk Speed", 16, 200, 16, " studs", function(value)
     Settings.Player.WalkSpeed = value
@@ -489,29 +734,67 @@ local walkSpeedSlider = createSlider(PlayerContent, "Walk Speed", 16, 200, 16, "
     end
 end)
 
-createSection(PlayerContent, "Anti Aim")
-local antiAimToggle = createToggle(PlayerContent, "Anti Aim", function(state)
-    Settings.Player.AntiAim = state
-    if state then
-        enableAntiAim()
-    else
-        disableAntiAim()
+local jumpPowerSlider = createSlider(PlayerContent, "Jump Power", 50, 300, 50, "", function(value)
+    Settings.Player.JumpPower = value
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") then
+        char.Humanoid.JumpPower = value
     end
 end)
 
-createSection(PlayerContent, "Camera")
+local infiniteJumpToggle = createToggle(PlayerContent, "Infinite Jump", function(state)
+    Settings.Player.InfiniteJump = state
+    if state then enableInfiniteJump() else disableInfiniteJump() end
+end)
+
+createSection(PlayerContent, "Fly")
+local flyToggle = createToggle(PlayerContent, "Fly", function(state)
+    Settings.Player.Fly = state
+    if state then enableFly() else disableFly() end
+end)
+
+local flySpeedSlider = createSlider(PlayerContent, "Fly Speed", 20, 200, 50, "", function(value)
+    Settings.Player.FlySpeed = value
+end)
+
+createSection(PlayerContent, "No Clip")
+local noClipToggle = createToggle(PlayerContent, "No Clip", function(state)
+    Settings.Player.NoClip = state
+    if state then enableNoClip() else disableNoClip() end
+end)
+
+createSection(PlayerContent, "Anti Aim")
+local antiAimToggle = createToggle(PlayerContent, "Anti Aim", function(state)
+    Settings.Player.AntiAim = state
+    if state then enableAntiAim() else disableAntiAim() end
+end)
+
+local antiAimDropdown = createDropdown(PlayerContent, "Type", {"Jitter", "Desync", "Spin", "Random"}, function(value)
+    Settings.Player.AntiAimType = value
+end)
+
+createSection(PlayerContent, "Third Person")
 local thirdPersonToggle = createToggle(PlayerContent, "Third Person", function(state)
     Settings.Player.ThirdPerson = state
-    if state then
-        enableThirdPerson()
-    else
-        disableThirdPerson()
-    end
+    if state then enableThirdPerson() else disableThirdPerson() end
+end)
+
+local thirdPersonSlider = createSlider(PlayerContent, "Distance", 5, 30, 10, "", function(value)
+    Settings.Player.ThirdPersonDistance = value
+end)
+
+createSection(PlayerContent, "Wall Shot")
+local wallShotToggle = createToggle(PlayerContent, "Wall Shot", function(state)
+    Settings.Player.WallShot = state
 end)
 
 createSection(CombatContent, "Aimbot")
 local aimbotToggle = createToggle(CombatContent, "Aimbot", function(state)
     Settings.Aimbot.Enabled = state
+end)
+
+local aimbotDropdown = createDropdown(CombatContent, "Target", {"Head", "Torso", "HumanoidRootPart"}, function(value)
+    Settings.Aimbot.TargetPart = value
 end)
 
 local showFovToggle = createToggle(CombatContent, "Show FOV", function(state)
@@ -526,7 +809,11 @@ local wallCheckToggle = createToggle(CombatContent, "Wall Check", function(state
     Settings.Aimbot.WallCheck = state
 end)
 
-createSection(ESPContent, "Visuals")
+local smoothSlider = createSlider(CombatContent, "Smoothness", 1, 20, 1, "", function(value)
+    Settings.Aimbot.Smoothness = value
+end)
+
+createSection(ESPContent, "Player ESP")
 local espToggle = createToggle(ESPContent, "ESP", function(state)
     Settings.ESP.Enabled = state
 end)
@@ -547,35 +834,90 @@ local espHealthToggle = createToggle(ESPContent, "Health Bar", function(state)
     Settings.ESP.HealthBar = state
 end)
 
+local espDistanceToggle = createToggle(ESPContent, "Distance", function(state)
+    Settings.ESP.Distance = state
+end)
+
+local espHeadDotToggle = createToggle(ESPContent, "Head Dot", function(state)
+    Settings.ESP.HeadDot = state
+end)
+
+local espSkeletonToggle = createToggle(ESPContent, "Skeleton", function(state)
+    Settings.ESP.Skeleton = state
+end)
+
+createSection(VisualsContent, "Visuals")
+local crosshairToggle = createToggle(VisualsContent, "Crosshair", function(state)
+    Settings.Visuals.Crosshair = state
+end)
+
+local crosshairSizeSlider = createSlider(VisualsContent, "Crosshair Size", 10, 100, 20, "px", function(value)
+    Settings.Visuals.CrosshairSize = value
+end)
+
+local fovChangerToggle = createToggle(VisualsContent, "FOV Changer", function(state)
+    Settings.Visuals.FOVChanger = state
+    if state then
+        Camera.FieldOfView = Settings.Visuals.FOVValue
+    else
+        Camera.FieldOfView = 70
+    end
+end)
+
+local fovValueSlider = createSlider(VisualsContent, "FOV Value", 30, 120, 70, "", function(value)
+    Settings.Visuals.FOVValue = value
+    if Settings.Visuals.FOVChanger then
+        Camera.FieldOfView = value
+    end
+end)
+
 PlayerContent.CanvasSize = UDim2.new(0, 0, 0, PlayerLayout.AbsoluteContentSize.Y + 15)
 CombatContent.CanvasSize = UDim2.new(0, 0, 0, CombatLayout.AbsoluteContentSize.Y + 15)
 ESPContent.CanvasSize = UDim2.new(0, 0, 0, ESPLayout.AbsoluteContentSize.Y + 15)
+VisualsContent.CanvasSize = UDim2.new(0, 0, 0, VisualsLayout.AbsoluteContentSize.Y + 15)
 
 PlayerTab.MouseButton1Click:Connect(function()
     PlayerContent.Visible = true
     CombatContent.Visible = false
     ESPContent.Visible = false
+    VisualsContent.Visible = false
     PlayerTab.BackgroundColor3 = Color3.fromRGB(255, 50, 100)
     CombatTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
     ESPTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    VisualsTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
 end)
 
 CombatTab.MouseButton1Click:Connect(function()
     PlayerContent.Visible = false
     CombatContent.Visible = true
     ESPContent.Visible = false
+    VisualsContent.Visible = false
     CombatTab.BackgroundColor3 = Color3.fromRGB(255, 50, 100)
     PlayerTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
     ESPTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    VisualsTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
 end)
 
 ESPTab.MouseButton1Click:Connect(function()
     PlayerContent.Visible = false
     CombatContent.Visible = false
     ESPContent.Visible = true
+    VisualsContent.Visible = false
     ESPTab.BackgroundColor3 = Color3.fromRGB(255, 50, 100)
     PlayerTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
     CombatTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    VisualsTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+end)
+
+VisualsTab.MouseButton1Click:Connect(function()
+    PlayerContent.Visible = false
+    CombatContent.Visible = false
+    ESPContent.Visible = false
+    VisualsContent.Visible = true
+    VisualsTab.BackgroundColor3 = Color3.fromRGB(255, 50, 100)
+    PlayerTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    CombatTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    ESPTab.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
 end)
 
 local DragButton = Instance.new("TextButton")
@@ -639,6 +981,19 @@ fovCircle.NumSides = 100
 fovCircle.Filled = false
 fovCircle.ZIndex = 1
 
+local crosshairHorizontal = Drawing.new("Line")
+crosshairHorizontal.Visible = false
+crosshairHorizontal.Thickness = 2
+crosshairHorizontal.Color = Settings.Visuals.CrosshairColor
+crosshairHorizontal.Transparency = 0.5
+crosshairHorizontal.ZIndex = 10
+
+local crosshairVertical = Drawing.new("Line")
+crosshairVertical.Visible = false
+crosshairVertical.Thickness = 2
+crosshairVertical.Color = Settings.Visuals.CrosshairColor
+crosshairVertical.Transparency = 0.5
+crosshairVertical.ZIndex = 10
 local espCache = {}
 
 local function createESP(player)
@@ -686,20 +1041,57 @@ local function createESP(player)
     nameTag.OutlineColor = Color3.fromRGB(0, 0, 0)
     nameTag.Font = 2
     nameTag.ZIndex = 3
+    local distanceTag = Drawing.new("Text")
+    distanceTag.Visible = false
+    distanceTag.Color = Color3.fromRGB(255, 255, 255)
+    distanceTag.Size = 13
+    distanceTag.Center = true
+    distanceTag.Outline = true
+    distanceTag.OutlineColor = Color3.fromRGB(0, 0, 0)
+    distanceTag.Font = 2
+    distanceTag.ZIndex = 3
+    local headDot = Drawing.new("Circle")
+    headDot.Visible = false
+    headDot.Thickness = 1
+    headDot.Color = Color3.fromRGB(255, 0, 0)
+    headDot.Transparency = 0.5
+    headDot.Filled = true
+    headDot.NumSides = 32
+    headDot.Radius = 5
+    headDot.ZIndex = 3
+    local skeletonLines = {}
+    for i = 1, 10 do
+        local line = Drawing.new("Line")
+        line.Visible = false
+        line.Thickness = 1
+        line.Color = Color3.fromRGB(255, 255, 255)
+        line.Transparency = 0.5
+        line.ZIndex = 2
+        skeletonLines[i] = line
+    end
     espCache[player] = {
         BoxOutline = boxOutline,
         Box = box,
         HealthBarBg = healthBarBg,
         HealthBar = healthBar,
         Tracer = tracer,
-        Name = nameTag
+        Name = nameTag,
+        Distance = distanceTag,
+        HeadDot = headDot,
+        Skeleton = skeletonLines
     }
 end
 
 local function removeESP(player)
     if espCache[player] then
         for _, drawing in pairs(espCache[player]) do
-            drawing:Remove()
+            if type(drawing) == "table" then
+                for _, d in ipairs(drawing) do
+                    d:Remove()
+                end
+            else
+                drawing:Remove()
+            end
         end
         espCache[player] = nil
     end
@@ -712,18 +1104,36 @@ local function updateESP()
             continue
         end
         if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
-            for _, d in pairs(drawings) do d.Visible = false end
+            for k, d in pairs(drawings) do
+                if type(d) == "table" then
+                    for _, line in ipairs(d) do line.Visible = false end
+                else
+                    d.Visible = false
+                end
+            end
             continue
         end
         if not Settings.ESP.Enabled then
-            for _, d in pairs(drawings) do d.Visible = false end
+            for k, d in pairs(drawings) do
+                if type(d) == "table" then
+                    for _, line in ipairs(d) do line.Visible = false end
+                else
+                    d.Visible = false
+                end
+            end
             continue
         end
         local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
         local head = player.Character:FindFirstChild("Head")
         local humanoid = player.Character:FindFirstChild("Humanoid")
         if not rootPart or not head or not humanoid then
-            for _, d in pairs(drawings) do d.Visible = false end
+            for k, d in pairs(drawings) do
+                if type(d) == "table" then
+                    for _, line in ipairs(d) do line.Visible = false end
+                else
+                    d.Visible = false
+                end
+            end
             continue
         end
         local rootPos, rootOnScreen = Camera:WorldToViewportPoint(rootPart.Position)
@@ -731,7 +1141,13 @@ local function updateESP()
         local legPos = rootPart.Position - Vector3.new(0, 3, 0)
         local legScreen, legOnScreen = Camera:WorldToViewportPoint(legPos)
         if not rootOnScreen and not headOnScreen then
-            for _, d in pairs(drawings) do d.Visible = false end
+            for k, d in pairs(drawings) do
+                if type(d) == "table" then
+                    for _, line in ipairs(d) do line.Visible = false end
+                else
+                    d.Visible = false
+                end
+            end
             continue
         end
         local topY = headPos.Y
@@ -787,6 +1203,53 @@ local function updateESP()
         else
             drawings.Name.Visible = false
         end
+        if Settings.ESP.Distance then
+            local dist = math.floor((LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and (LocalPlayer.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude) or 0)
+            drawings.Distance.Visible = true
+            drawings.Distance.Text = "["..dist.."m]"
+            drawings.Distance.Position = Vector2.new(headPos.X, headPos.Y - 38)
+        else
+            drawings.Distance.Visible = false
+        end
+        if Settings.ESP.HeadDot then
+            drawings.HeadDot.Visible = true
+            drawings.HeadDot.Position = Vector2.new(headPos.X, headPos.Y)
+        else
+            drawings.HeadDot.Visible = false
+        end
+        if Settings.ESP.Skeleton then
+            local connections = {
+                {"Head", "UpperTorso"},
+                {"UpperTorso", "LeftUpperArm"},
+                {"LeftUpperArm", "LeftLowerArm"},
+                {"LeftLowerArm", "LeftHand"},
+                {"UpperTorso", "RightUpperArm"},
+                {"RightUpperArm", "RightLowerArm"},
+                {"RightLowerArm", "RightHand"},
+                {"UpperTorso", "LowerTorso"},
+                {"LowerTorso", "LeftUpperLeg"},
+                {"LeftUpperLeg", "LeftLowerLeg"},
+            }
+            for i, conn in ipairs(connections) do
+                local part1 = player.Character:FindFirstChild(conn[1])
+                local part2 = player.Character:FindFirstChild(conn[2])
+                if part1 and part2 and i <= #drawings.Skeleton then
+                    local pos1, on1 = Camera:WorldToViewportPoint(part1.Position)
+                    local pos2, on2 = Camera:WorldToViewportPoint(part2.Position)
+                    if on1 and on2 then
+                        drawings.Skeleton[i].Visible = true
+                        drawings.Skeleton[i].From = Vector2.new(pos1.X, pos1.Y)
+                        drawings.Skeleton[i].To = Vector2.new(pos2.X, pos2.Y)
+                    else
+                        drawings.Skeleton[i].Visible = false
+                    end
+                end
+            end
+        else
+            for _, line in ipairs(drawings.Skeleton) do
+                line.Visible = false
+            end
+        end
     end
 end
 
@@ -802,7 +1265,7 @@ setupAllESP()
 
 Players.PlayerAdded:Connect(function(player)
     if player ~= LocalPlayer then
-        task.wait(0.5)
+        task.wait(1)
         createESP(player)
     end
 end)
@@ -819,10 +1282,26 @@ RunService.RenderStepped:Connect(function()
     else
         fovCircle.Visible = false
     end
+    if Settings.Visuals.Crosshair then
+        crosshairHorizontal.Visible = true
+        crosshairVertical.Visible = true
+        local centerX = Camera.ViewportSize.X / 2
+        local centerY = Camera.ViewportSize.Y / 2
+        local size = Settings.Visuals.CrosshairSize
+        crosshairHorizontal.From = Vector2.new(centerX - size, centerY)
+        crosshairHorizontal.To = Vector2.new(centerX + size, centerY)
+        crosshairVertical.From = Vector2.new(centerX, centerY - size)
+        crosshairVertical.To = Vector2.new(centerX, centerY + size)
+    else
+        crosshairHorizontal.Visible = false
+        crosshairVertical.Visible = false
+    end
     if Settings.Aimbot.Enabled then
         local target = getClosestTarget()
         if target then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
+            local smoothFactor = Settings.Aimbot.Smoothness
+            local targetCFrame = CFrame.new(Camera.CFrame.Position, target.Position)
+            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 1 / smoothFactor)
         end
     end
     updateESP()
@@ -831,13 +1310,19 @@ end)
 LocalPlayer.CharacterAdded:Connect(function(character)
     local humanoid = character:WaitForChild("Humanoid")
     humanoid.WalkSpeed = Settings.Player.WalkSpeed
+    humanoid.JumpPower = Settings.Player.JumpPower
     task.wait(1)
     setupAllESP()
+    if Settings.Player.Fly then enableFly() end
+    if Settings.Player.NoClip then enableNoClip() end
+    if Settings.Player.AntiAim then enableAntiAim() end
+    if Settings.Player.ThirdPerson then enableThirdPerson() end
 end)
 
 if LocalPlayer.Character then
     local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
     if humanoid then
         humanoid.WalkSpeed = Settings.Player.WalkSpeed
+        humanoid.JumpPower = Settings.Player.JumpPower
     end
 end
