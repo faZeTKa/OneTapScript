@@ -10,19 +10,41 @@ local Settings = {
         Enabled = false,
         FOV = 150,
         ShowFOV = false,
-        AutoShot = false,
-        HitChance = 80
+        WallCheck = true,
+        AutoShot = false
     },
     ESP = {
         Enabled = false,
         Boxes = false,
         Tracers = false,
-        Names = false
+        Names = false,
+        HealthBar = false,
+        Distance = false
     },
     Player = {
-        WalkSpeed = 16
+        WalkSpeed = 16,
+        WallShot = false
     }
 }
+
+local RaycastParams = RaycastParams.new()
+RaycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+RaycastParams.IgnoreWater = true
+
+local function isBehindWall(targetPart)
+    local origin = Camera.CFrame.Position
+    local direction = (targetPart.Position - origin).Unit * 1000
+    RaycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+    local result = workspace:Raycast(origin, direction, RaycastParams)
+    if result and result.Instance then
+        local hitChar = result.Instance:FindFirstAncestorOfClass("Model")
+        if hitChar and hitChar:FindFirstChild("Humanoid") then
+            return false
+        end
+        return true
+    end
+    return false
+end
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "OneTapHubPremium"
@@ -80,7 +102,7 @@ CloseButton.BorderSizePixel = 0
 CloseButton.Position = UDim2.new(0.89, 0, 0.15, 0)
 CloseButton.Size = UDim2.new(0, 26, 0, 26)
 CloseButton.Font = Enum.Font.GothamBold
-CloseButton.Text = "×"
+CloseButton.Text = "x"
 CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseButton.TextSize = 18
 
@@ -399,6 +421,11 @@ local walkSpeedSlider = createSlider(PlayerContent, "Walk Speed", 16, 200, 16, "
     end
 end)
 
+createSection(PlayerContent, "Wall Shot")
+local wallShotToggle = createToggle(PlayerContent, "Wall Shot", function(state)
+    Settings.Player.WallShot = state
+end)
+
 createSection(CombatContent, "Aimbot")
 local aimbotToggle = createToggle(CombatContent, "Aimbot", function(state)
     Settings.Aimbot.Enabled = state
@@ -412,13 +439,8 @@ local fovSlider = createSlider(CombatContent, "FOV Radius", 30, 400, 150, "px", 
     Settings.Aimbot.FOV = value
 end)
 
-createSection(CombatContent, "Auto Shot")
-local autoShotToggle = createToggle(CombatContent, "Auto Shot", function(state)
-    Settings.Aimbot.AutoShot = state
-end)
-
-local hitChanceSlider = createSlider(CombatContent, "Hit Chance", 0, 100, 80, "%", function(value)
-    Settings.Aimbot.HitChance = value
+local wallCheckToggle = createToggle(CombatContent, "Wall Check", function(state)
+    Settings.Aimbot.WallCheck = state
 end)
 
 createSection(ESPContent, "Visuals")
@@ -436,6 +458,14 @@ end)
 
 local espNamesToggle = createToggle(ESPContent, "Names", function(state)
     Settings.ESP.Names = state
+end)
+
+local espHealthToggle = createToggle(ESPContent, "Health Bar", function(state)
+    Settings.ESP.HealthBar = state
+end)
+
+local espDistanceToggle = createToggle(ESPContent, "Distance", function(state)
+    Settings.ESP.Distance = state
 end)
 
 PlayerContent.CanvasSize = UDim2.new(0, 0, 0, PlayerLayout.AbsoluteContentSize.Y + 15)
@@ -504,70 +534,41 @@ DragButton.InputBegan:Connect(function(input)
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
-        local delta = input.Position - dragStart
-        if math.abs(delta.X) > 3 or math.abs(delta.Y) > 3 then
-            clickMoved = true
-            local newX = math.clamp(startPos.X.Offset + delta.X, 0, Camera.ViewportSize.X - 44)
-            local newY = math.clamp(startPos.Y.Offset + delta.Y, 0, Camera.ViewportSize.Y - 44)
-            DragButton.Position = UDim2.new(0, newX, 0, newY)
-        end
-    end
-end)
-
-DragButton.MouseButton1Click:Connect(function()
-    if not clickMoved then
-        MainFrame.Visible = not MainFrame.Visible
-    end
-end)
-
-local fovCircle = Drawing.new("Circle")
-fovCircle.Visible = false
-fovCircle.Thickness = 1.2
-fovCircle.Color = Color3.fromRGB(255, 255, 255)
-fovCircle.Transparency = 0.85
-fovCircle.NumSides = 100
-fovCircle.Filled = false
-fovCircle.ZIndex = 1
-
-local espCache = {}
-
-local function getClosestTarget()
-    local closestTarget = nil
-    local closestDistance = Settings.Aimbot.FOV
-    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
-            local targetPart = player.Character:FindFirstChild("Head") or player.Character:FindFirstChild("HumanoidRootPart")
-            if targetPart then
-                local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-                if onScreen then
-                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
-                    if distance < closestDistance then
-                        closestTarget = targetPart
-                        closestDistance = distance
-                    end
-                end
-            end
-        end
-    end
-    return closestTarget
-end
-
-local function createESP(player)
+    if dragging and (inlocal function createESP(player)
     if espCache[player] then return end
+    local boxOutline = Drawing.new("Square")
+    boxOutline.Visible = false
+    boxOutline.Thickness = 3
+    boxOutline.Color = Color3.fromRGB(0, 0, 0)
+    boxOutline.Transparency = 0.8
+    boxOutline.Filled = false
+    boxOutline.ZIndex = 2
     local box = Drawing.new("Square")
     box.Visible = false
     box.Thickness = 1.5
     box.Color = Color3.fromRGB(255, 255, 255)
-    box.Transparency = 0.7
+    box.Transparency = 0.6
     box.Filled = false
-    box.ZIndex = 2
+    box.ZIndex = 3
+    local healthBarBg = Drawing.new("Square")
+    healthBarBg.Visible = false
+    healthBarBg.Thickness = 1
+    healthBarBg.Color = Color3.fromRGB(0, 0, 0)
+    healthBarBg.Transparency = 0.7
+    healthBarBg.Filled = true
+    healthBarBg.ZIndex = 2
+    local healthBar = Drawing.new("Square")
+    healthBar.Visible = false
+    healthBar.Thickness = 1
+    healthBar.Color = Color3.fromRGB(100, 255, 100)
+    healthBar.Transparency = 0.5
+    healthBar.Filled = true
+    healthBar.ZIndex = 3
     local tracer = Drawing.new("Line")
     tracer.Visible = false
     tracer.Thickness = 1
     tracer.Color = Color3.fromRGB(255, 255, 255)
-    tracer.Transparency = 0.6
+    tracer.Transparency = 0.5
     tracer.ZIndex = 2
     local nameTag = Drawing.new("Text")
     nameTag.Visible = false
@@ -577,9 +578,12 @@ local function createESP(player)
     nameTag.Outline = true
     nameTag.OutlineColor = Color3.fromRGB(0, 0, 0)
     nameTag.Font = 2
-    nameTag.ZIndex = 2
+    nameTag.ZIndex = 3
     espCache[player] = {
+        BoxOutline = boxOutline,
         Box = box,
+        HealthBarBg = healthBarBg,
+        HealthBar = healthBar,
         Tracer = tracer,
         Name = nameTag
     }
@@ -597,41 +601,66 @@ end
 local function updateESP()
     for player, drawings in pairs(espCache) do
         if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
-            drawings.Box.Visible = false
-            drawings.Tracer.Visible = false
-            drawings.Name.Visible = false
+            for _, d in pairs(drawings) do d.Visible = false end
             continue
         end
         if not Settings.ESP.Enabled then
-            drawings.Box.Visible = false
-            drawings.Tracer.Visible = false
-            drawings.Name.Visible = false
+            for _, d in pairs(drawings) do d.Visible = false end
             continue
         end
         local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
         local head = player.Character:FindFirstChild("Head")
-        if not rootPart or not head then
-            drawings.Box.Visible = false
-            drawings.Tracer.Visible = false
-            drawings.Name.Visible = false
+        local humanoid = player.Character:FindFirstChild("Humanoid")
+        if not rootPart or not head or not humanoid then
+            for _, d in pairs(drawings) do d.Visible = false end
             continue
         end
         local rootPos, rootOnScreen = Camera:WorldToViewportPoint(rootPart.Position)
-        local headPos, headOnScreen = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+        local headPos, headOnScreen = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.8, 0))
+        local legPos = rootPart.Position - Vector3.new(0, 3, 0)
+        local legScreen, legOnScreen = Camera:WorldToViewportPoint(legPos)
         if not rootOnScreen and not headOnScreen then
-            drawings.Box.Visible = false
-            drawings.Tracer.Visible = false
-            drawings.Name.Visible = false
+            for _, d in pairs(drawings) do d.Visible = false end
             continue
         end
+        local topY = headPos.Y
+        local bottomY = math.max(rootPos.Y, legScreen.Y)
+        local fullHeight = math.abs(bottomY - topY)
+        local fullWidth = fullHeight * 0.5
+        local boxX = rootPos.X - fullWidth / 2
         if Settings.ESP.Boxes then
-            local height = math.abs(rootPos.Y - headPos.Y)
-            local width = height * 0.65
+            drawings.BoxOutline.Visible = true
+            drawings.BoxOutline.Position = Vector2.new(boxX - 1, topY - 1)
+            drawings.BoxOutline.Size = Vector2.new(fullWidth + 2, fullHeight + 2)
             drawings.Box.Visible = true
-            drawings.Box.Position = Vector2.new(rootPos.X - width / 2, headPos.Y)
-            drawings.Box.Size = Vector2.new(width, height)
+            drawings.Box.Position = Vector2.new(boxX, topY)
+            drawings.Box.Size = Vector2.new(fullWidth, fullHeight)
         else
+            drawings.BoxOutline.Visible = false
             drawings.Box.Visible = false
+        end
+        if Settings.ESP.HealthBar then
+            local healthPercent = humanoid.Health / humanoid.MaxHealth
+            local barHeight = fullHeight * healthPercent
+            local barWidth = 4
+            local barX = boxX - barWidth - 4
+            local barY = topY + fullHeight - barHeight
+            drawings.HealthBarBg.Visible = true
+            drawings.HealthBarBg.Position = Vector2.new(barX, topY)
+            drawings.HealthBarBg.Size = Vector2.new(barWidth, fullHeight)
+            drawings.HealthBar.Visible = true
+            drawings.HealthBar.Position = Vector2.new(barX, barY)
+            drawings.HealthBar.Size = Vector2.new(barWidth, barHeight)
+            if healthPercent > 0.6 then
+                drawings.HealthBar.Color = Color3.fromRGB(100, 255, 100)
+            elseif healthPercent > 0.3 then
+                drawings.HealthBar.Color = Color3.fromRGB(255, 255, 100)
+            else
+                drawings.HealthBar.Color = Color3.fromRGB(255, 100, 100)
+            end
+        else
+            drawings.HealthBarBg.Visible = false
+            drawings.HealthBar.Visible = false
         end
         if Settings.ESP.Tracers then
             drawings.Tracer.Visible = true
@@ -643,7 +672,7 @@ local function updateESP()
         if Settings.ESP.Names then
             drawings.Name.Visible = true
             drawings.Name.Text = player.Name
-            drawings.Name.Position = Vector2.new(headPos.X, headPos.Y - 20)
+            drawings.Name.Position = Vector2.new(headPos.X, headPos.Y - 24)
         else
             drawings.Name.Visible = false
         end
@@ -677,36 +706,6 @@ RunService.RenderStepped:Connect(function()
         end
     end
     updateESP()
-end)
-
-task.spawn(function()
-    while task.wait(0.08) do
-        if Settings.Aimbot.Enabled and Settings.Aimbot.AutoShot then
-            local target = getClosestTarget()
-            if target and target.Parent and target.Parent:FindFirstChild("Humanoid") and target.Parent.Humanoid.Health > 0 then
-                local chance = math.random(1, 100)
-                if chance <= Settings.Aimbot.HitChance then
-                    VirtualInputManager:SendMouseButtonEvent(
-                        Camera.ViewportSize.X / 2,
-                        Camera.ViewportSize.Y / 2,
-                        0,
-                        true,
-                        game,
-                        1
-                    )
-                    task.wait(0.04)
-                    VirtualInputManager:SendMouseButtonEvent(
-                        Camera.ViewportSize.X / 2,
-                        Camera.ViewportSize.Y / 2,
-                        0,
-                        false,
-                        game,
-                        1
-                    )
-                end
-            end
-        end
-    end
 end)
 
 LocalPlayer.CharacterAdded:Connect(function(character)
