@@ -18,7 +18,12 @@
 -- ⚠️ IMPORTANT: Put this code at the VERY TOP of your Main Script (before obfuscating) ⚠️
 
 local ProtectionConfig = {
+    -- 🔴 CRITICAL: This MUST exactly match the 'Secret' value in your Key System's Config!
+    -- If your Key System has: Secret = "Test"
+    -- Then this must also be: SecretKey = "Test"
     SecretKey = "LOLSCRIPTSBEST111",
+    
+    -- The name of your Hub (shown in the kick message if they try to bypass)
     HubName = "LOL HUB"
 }
 
@@ -40,6 +45,10 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+
+if not LocalPlayer then
+    LocalPlayer = Players.PlayerAdded:Wait()
+end
 
 local Settings = {
     Aimbot = {
@@ -441,6 +450,7 @@ VisualsContent.CanvasSize = UDim2.new(0, 0, 0, 300)
 VisualsContent.ScrollBarThickness = 3
 VisualsContent.ScrollBarImageColor3 = Color3.fromRGB(255, 50, 100)
 VisualsContent.Visible = false
+
 -- Layouts and Padding
 local PlayerLayout = Instance.new("UIListLayout")
 PlayerLayout.Parent = PlayerContent
@@ -701,7 +711,6 @@ local function createDropdown(parent, name, options, callback)
     end)
     return { getValue = function() return options[selectedIndex] end, frame = DropFrame }
 end
-
 -- Tab Content
 createSection(PlayerContent, "Movement")
 local walkSpeedSlider = createSlider(PlayerContent, "Walk Speed", 16, 200, 16, " studs", function(value)
@@ -808,10 +817,12 @@ end)
 -- Update Canvas Sizes
 task.spawn(function()
     while task.wait(0.2) do
-        PlayerContent.CanvasSize = UDim2.new(0, 0, 0, PlayerLayout.AbsoluteContentSize.Y + 15)
-        CombatContent.CanvasSize = UDim2.new(0, 0, 0, CombatLayout.AbsoluteContentSize.Y + 15)
-        ESPContent.CanvasSize = UDim2.new(0, 0, 0, ESPLayout.AbsoluteContentSize.Y + 15)
-        VisualsContent.CanvasSize = UDim2.new(0, 0, 0, VisualsLayout.AbsoluteContentSize.Y + 15)
+        pcall(function()
+            PlayerContent.CanvasSize = UDim2.new(0, 0, 0, PlayerLayout.AbsoluteContentSize.Y + 15)
+            CombatContent.CanvasSize = UDim2.new(0, 0, 0, CombatLayout.AbsoluteContentSize.Y + 15)
+            ESPContent.CanvasSize = UDim2.new(0, 0, 0, ESPLayout.AbsoluteContentSize.Y + 15)
+            VisualsContent.CanvasSize = UDim2.new(0, 0, 0, VisualsLayout.AbsoluteContentSize.Y + 15)
+        end)
     end
 end)
 
@@ -926,4 +937,232 @@ local espCache = {}
 
 local function createESP(player)
     if espCache[player] then return end
-  
+    local boxOutline = Drawing.new("Square")
+    boxOutline.Visible = false
+    boxOutline.Thickness = 3
+    boxOutline.Color = Color3.fromRGB(0, 0, 0)
+    boxOutline.Transparency = 0.8
+    boxOutline.Filled = false
+    boxOutline.ZIndex = 2
+    local box = Drawing.new("Square")
+    box.Visible = false
+    box.Thickness = 1.5
+    box.Color = Color3.fromRGB(255, 255, 255)
+    box.Transparency = 0.6
+    box.Filled = false
+    box.ZIndex = 3
+    local healthBarBg = Drawing.new("Square")
+    healthBarBg.Visible = false
+    healthBarBg.Thickness = 1
+    healthBarBg.Color = Color3.fromRGB(0, 0, 0)
+    healthBarBg.Transparency = 0.7
+    healthBarBg.Filled = true
+    healthBarBg.ZIndex = 2
+    local healthBar = Drawing.new("Square")
+    healthBar.Visible = false
+    healthBar.Thickness = 1
+    healthBar.Color = Color3.fromRGB(100, 255, 100)
+    healthBar.Transparency = 0.5
+    healthBar.Filled = true
+    healthBar.ZIndex = 3
+    local tracer = Drawing.new("Line")
+    tracer.Visible = false
+    tracer.Thickness = 1
+    tracer.Color = Color3.fromRGB(255, 255, 255)
+    tracer.Transparency = 0.5
+    tracer.ZIndex = 2
+    local nameTag = Drawing.new("Text")
+    nameTag.Visible = false
+    nameTag.Color = Color3.fromRGB(255, 255, 255)
+    nameTag.Size = 14
+    nameTag.Center = true
+    nameTag.Outline = true
+    nameTag.OutlineColor = Color3.fromRGB(0, 0, 0)
+    nameTag.Font = 2
+    nameTag.ZIndex = 3
+    local distanceTag = Drawing.new("Text")
+    distanceTag.Visible = false
+    distanceTag.Color = Color3.fromRGB(255, 255, 255)
+    distanceTag.Size = 13
+    distanceTag.Center = true
+    distanceTag.Outline = true
+    distanceTag.OutlineColor = Color3.fromRGB(0, 0, 0)
+    distanceTag.Font = 2
+    distanceTag.ZIndex = 3
+    local headDot = Drawing.new("Circle")
+    headDot.Visible = false
+    headDot.Thickness = 1
+    headDot.Color = Color3.fromRGB(255, 0, 0)
+    headDot.Transparency = 0.5
+    headDot.Filled = true
+    headDot.NumSides = 32
+    headDot.Radius = 6
+    headDot.ZIndex = 3
+    espCache[player] = {
+        BoxOutline = boxOutline, Box = box, HealthBarBg = healthBarBg, HealthBar = healthBar,
+        Tracer = tracer, Name = nameTag, Distance = distanceTag, HeadDot = headDot
+    }
+end
+
+local function removeESP(player)
+    if espCache[player] then
+        for _, drawing in pairs(espCache[player]) do
+            pcall(function() drawing:Remove() end)
+        end
+        espCache[player] = nil
+    end
+end
+
+local function updateESP()
+    for player, drawings in pairs(espCache) do
+        if not player or not player.Parent then removeESP(player) continue end
+        if not player.Character or not player.Character:FindFirstChild("Humanoid") or player.Character.Humanoid.Health <= 0 then
+            for _, d in pairs(drawings) do d.Visible = false end continue
+        end
+        if not Settings.ESP.Enabled then
+            for _, d in pairs(drawings) do d.Visible = false end continue
+        end
+        local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
+        local head = player.Character:FindFirstChild("Head")
+        local humanoid = player.Character:FindFirstChild("Humanoid")
+        if not rootPart or not head or not humanoid then
+            for _, d in pairs(drawings) do d.Visible = false end continue
+        end
+        local rootPos, rootOnScreen = Camera:WorldToViewportPoint(rootPart.Position)
+        local headPos, headOnScreen = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.8, 0))
+        local legPos = rootPart.Position - Vector3.new(0, 3, 0)
+        local legScreen, legOnScreen = Camera:WorldToViewportPoint(legPos)
+        if not rootOnScreen and not headOnScreen then
+            for _, d in pairs(drawings) do d.Visible = false end continue
+        end
+        local topY = headPos.Y
+        local bottomY = math.max(rootPos.Y, legScreen.Y)
+        local fullHeight = math.abs(bottomY - topY)
+        local fullWidth = fullHeight * 0.5
+        local boxX = rootPos.X - fullWidth / 2
+        if Settings.ESP.Boxes then
+            drawings.BoxOutline.Visible = true
+            drawings.BoxOutline.Position = Vector2.new(boxX - 1, topY - 1)
+            drawings.BoxOutline.Size = Vector2.new(fullWidth + 2, fullHeight + 2)
+            drawings.Box.Visible = true
+            drawings.Box.Position = Vector2.new(boxX, topY)
+            drawings.Box.Size = Vector2.new(fullWidth, fullHeight)
+        else
+            drawings.BoxOutline.Visible = false drawings.Box.Visible = false
+        end
+        if Settings.ESP.HealthBar then
+            local healthPercent = humanoid.Health / humanoid.MaxHealth
+            local barHeight = fullHeight * healthPercent
+            local barWidth = 4
+            local barX = boxX - barWidth - 4
+            local barY = topY + fullHeight - barHeight
+            drawings.HealthBarBg.Visible = true
+            drawings.HealthBarBg.Position = Vector2.new(barX, topY)
+            drawings.HealthBarBg.Size = Vector2.new(barWidth, fullHeight)
+            drawings.HealthBar.Visible = true
+            drawings.HealthBar.Position = Vector2.new(barX, barY)
+            drawings.HealthBar.Size = Vector2.new(barWidth, barHeight)
+            if healthPercent > 0.6 then drawings.HealthBar.Color = Color3.fromRGB(100, 255, 100)
+            elseif healthPercent > 0.3 then drawings.HealthBar.Color = Color3.fromRGB(255, 255, 100)
+            else drawings.HealthBar.Color = Color3.fromRGB(255, 100, 100) end
+        else
+            drawings.HealthBarBg.Visible = false drawings.HealthBar.Visible = false
+        end
+        if Settings.ESP.Tracers then
+            drawings.Tracer.Visible = true
+            drawings.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+            drawings.Tracer.To = Vector2.new(rootPos.X, rootPos.Y)
+        else
+            drawings.Tracer.Visible = false
+        end
+        if Settings.ESP.Names then
+            drawings.Name.Visible = true
+            drawings.Name.Text = player.Name
+            drawings.Name.Position = Vector2.new(headPos.X, headPos.Y - 24)
+        else
+            drawings.Name.Visible = false
+        end
+        if Settings.ESP.Distance then
+            local dist = 0
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                dist = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude)
+            end
+            drawings.Distance.Visible = true
+            drawings.Distance.Text = "["..dist.."m]"
+            drawings.Distance.Position = Vector2.new(headPos.X, headPos.Y - 38)
+        else
+            drawings.Distance.Visible = false
+        end
+        if Settings.ESP.HeadDot then
+            drawings.HeadDot.Visible = true
+            drawings.HeadDot.Position = Vector2.new(headPos.X, headPos.Y)
+        else
+            drawings.HeadDot.Visible = false
+        end
+    end
+end
+
+local function setupAllESP()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then createESP(player) end
+    end
+end
+
+setupAllESP()
+
+Players.PlayerAdded:Connect(function(player)
+    if player ~= LocalPlayer then task.wait(1) createESP(player) end
+end)
+
+Players.PlayerRemoving:Connect(function(player) removeESP(player) end)
+
+-- Main Loop
+RunService.RenderStepped:Connect(function()
+    if Settings.Aimbot.ShowFOV then
+        fovCircle.Visible = true
+        fovCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+        fovCircle.Radius = Settings.Aimbot.FOV
+    else
+        fovCircle.Visible = false
+    end
+    if Settings.Visuals.Crosshair then
+        crosshairHorizontal.Visible = true crosshairVertical.Visible = true
+        local centerX = Camera.ViewportSize.X / 2
+        local centerY = Camera.ViewportSize.Y / 2
+        local size = Settings.Visuals.CrosshairSize
+        crosshairHorizontal.From = Vector2.new(centerX - size, centerY)
+        crosshairHorizontal.To = Vector2.new(centerX + size, centerY)
+        crosshairVertical.From = Vector2.new(centerX, centerY - size)
+        crosshairVertical.To = Vector2.new(centerX, centerY + size)
+    else
+        crosshairHorizontal.Visible = false crosshairVertical.Visible = false
+    end
+    if Settings.Aimbot.Enabled then
+        local target = getClosestTarget()
+        if target then
+            local smoothFactor = Settings.Aimbot.Smoothness
+            if smoothFactor <= 1 then
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
+            else
+                local targetCFrame = CFrame.new(Camera.CFrame.Position, target.Position)
+                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 1 / smoothFactor)
+            end
+        end
+    end
+    updateESP()
+end)
+
+-- Character Connection
+LocalPlayer.CharacterAdded:Connect(function(character)
+    local humanoid = character:WaitForChild("Humanoid")
+    humanoid.WalkSpeed = Settings.Player.WalkSpeed
+    task.wait(1) setupAllESP()
+    if Settings.Player.NoClip then enableNoClip() end
+    if Settings.Player.AntiAim then enableAntiAim() end
+    if Settings.Player.ThirdPerson then enableThirdPerson() end
+end)
+
+if LocalPlayer.Character then
+    local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+    if humanoid then humanoid.WalkSpeed = Settings.Player.WalkSpeed end
+end
